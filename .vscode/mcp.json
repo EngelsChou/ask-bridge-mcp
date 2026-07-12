@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "m365Copilot": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/dist/index.js"],
+      "env": {
+        "ASK_BRIDGE_PATH": "D:\\EngelsSideProjects\\ask-bridge\\target\\release\\ask-bridge.exe"
+      }
+    }
+  }
+}

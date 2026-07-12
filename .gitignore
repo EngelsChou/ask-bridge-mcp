@@ -44,6 +44,12 @@ ScaffoldingReadMe.txt
 *~
 CodeCoverage/
 
+# Node.js / TypeScript
+node_modules/
+dist/
+.npm-cache/
+npm-debug.log*
+
 # MSBuild Binary and Structured Log
 *.binlog
 
