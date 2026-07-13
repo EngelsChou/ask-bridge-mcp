@@ -85,7 +85,7 @@ release\install.exe
 release\uninstall.exe
 ```
 
-推送與 `package.json` 版本相同的 tag（例如 `v0.1.0`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將這兩個檔案上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
+推送與 `package.json` 版本相同的 tag（例如 `v0.1.1`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將這兩個檔案上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 

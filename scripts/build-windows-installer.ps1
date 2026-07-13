@@ -57,6 +57,19 @@ function Resolve-Executable {
     return $null
 }
 
+function Get-Sha256 {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace("-", "")
+    } finally {
+        $stream.Dispose()
+        $algorithm.Dispose()
+    }
+}
+
 if ($env:OS -ne "Windows_NT") {
     throw "The Windows installer can only be built on Windows."
 }
@@ -179,8 +192,8 @@ if (-not (Test-Path -LiteralPath $uninstallerPath -PathType Leaf)) {
 
 foreach ($artifactPath in @($installerPath, $uninstallerPath)) {
     $artifact = Get-Item -LiteralPath $artifactPath
-    $hash = Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256
+    $hash = Get-Sha256 -Path $artifactPath
     Write-Host "Artifact created: $($artifact.FullName)"
     Write-Host "Size: $($artifact.Length) bytes"
-    Write-Host "SHA256: $($hash.Hash)"
+    Write-Host "SHA256: $hash"
 }
