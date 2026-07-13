@@ -19,7 +19,7 @@ ask-bridge --provider copilot login
 
 登入指令會開啟 Chrome，請在瀏覽器中完成 Microsoft 365 Copilot 登入。
 
-接著執行發布頁提供的 `ask-bridge-mcp-install.exe`。安裝器會將程式安裝到：
+接著從 GitHub Releases 下載並執行 `install.exe`。安裝器會將程式安裝到：
 
 ```text
 %LOCALAPPDATA%\Programs\ask-bridge-mcp
@@ -32,6 +32,8 @@ ask-bridge --provider copilot login
 ```text
 %LOCALAPPDATA%\Programs\ask-bridge-mcp\uninstall.exe
 ```
+
+GitHub Release 也會另外提供可下載的 `uninstall.exe`。它會尋找預設位置中的安裝內容並啟動獨立解除安裝流程；即使安裝目錄內原本的解除安裝程式遺失，也能使用。
 
 ## 在 VS Code 使用
 
@@ -76,11 +78,14 @@ npm run build
 npm run package:win
 ```
 
-建置流程只會在建置電腦執行 `npm ci`，並產生：
+建置流程只會在建置電腦執行 `npm ci`，並產生兩個可發布檔案：
 
 ```text
-release\ask-bridge-mcp-install.exe
+release\install.exe
+release\uninstall.exe
 ```
+
+推送與 `package.json` 版本相同的 tag（例如 `v0.1.0`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將這兩個檔案上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 
@@ -118,7 +123,7 @@ npm run build
 ## 注意事項
 
 - MCP Server 的標準輸出保留給 MCP 通訊協定使用，因此程式不會將偵錯訊息寫入 stdout。
-- `ask-bridge-mcp-install.exe` 只安裝本專案；找不到 `ask-bridge.exe` 時會顯示警告，但不會替使用者安裝或修改 `ask-bridge`。
+- `install.exe` 只安裝本專案；找不到 `ask-bridge.exe` 時會顯示警告，但不會替使用者安裝或修改 `ask-bridge`。
 - 安裝器目前未加上程式碼簽章。公司環境若使用 SmartScreen、AppLocker 或其他應用程式管控，仍可能需要由 IT 簽章或加入允許清單。
 - 使用工具時，Chrome 與 Microsoft 365 Copilot 的回應可能需要一段時間，預設逾時時間為 300 秒。
 - Microsoft 365 Copilot 的網頁介面若改版，可能需要同步更新 `ask-bridge`。

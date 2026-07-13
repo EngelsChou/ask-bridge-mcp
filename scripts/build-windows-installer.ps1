@@ -14,7 +14,9 @@ $releaseDir = [IO.Path]::GetFullPath((Join-Path $repoRoot "release"))
 $stageDir = [IO.Path]::GetFullPath((Join-Path $releaseDir "stage"))
 $appStageDir = Join-Path $stageDir "app"
 $runtimeStageDir = Join-Path $stageDir "runtime"
-$installerPath = Join-Path $releaseDir "ask-bridge-mcp-install.exe"
+$installerPath = Join-Path $releaseDir "install.exe"
+$uninstallerPath = Join-Path $releaseDir "uninstall.exe"
+$legacyInstallerPath = Join-Path $releaseDir "ask-bridge-mcp-install.exe"
 
 function Assert-GeneratedPath {
     param([Parameter(Mandatory)][string]$Path)
@@ -150,22 +152,35 @@ if (-not $resolvedMakeNsis) {
 }
 
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-if (Test-Path -LiteralPath $installerPath) {
-    Assert-GeneratedPath -Path $installerPath
-    Remove-Item -LiteralPath $installerPath -Force
+foreach ($artifactPath in @($installerPath, $uninstallerPath, $legacyInstallerPath)) {
+    if (Test-Path -LiteralPath $artifactPath) {
+        Assert-GeneratedPath -Path $artifactPath
+        Remove-Item -LiteralPath $artifactPath -Force
+    }
 }
 
 $nsisScript = Join-Path $repoRoot "installer\ask-bridge-mcp.nsi"
 & $resolvedMakeNsis "/INPUTCHARSET" "UTF8" "/DAPP_VERSION=$appVersion" "/DFILE_VERSION=$fileVersion" "/DSTAGE_DIR=$stageDir" "/DOUTPUT_FILE=$installerPath" $nsisScript
 if ($LASTEXITCODE -ne 0) {
-    throw "NSIS failed with exit code $LASTEXITCODE."
+    throw "NSIS failed to build install.exe with exit code $LASTEXITCODE."
 }
 if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
     throw "NSIS reported success but the installer was not created: $installerPath"
 }
 
-$installer = Get-Item -LiteralPath $installerPath
-$hash = Get-FileHash -LiteralPath $installerPath -Algorithm SHA256
-Write-Host "Installer created: $($installer.FullName)"
-Write-Host "Size: $($installer.Length) bytes"
-Write-Host "SHA256: $($hash.Hash)"
+$uninstallerScript = Join-Path $repoRoot "installer\ask-bridge-mcp-uninstall.nsi"
+& $resolvedMakeNsis "/INPUTCHARSET" "UTF8" "/DAPP_VERSION=$appVersion" "/DFILE_VERSION=$fileVersion" "/DOUTPUT_FILE=$uninstallerPath" $uninstallerScript
+if ($LASTEXITCODE -ne 0) {
+    throw "NSIS failed to build uninstall.exe with exit code $LASTEXITCODE."
+}
+if (-not (Test-Path -LiteralPath $uninstallerPath -PathType Leaf)) {
+    throw "NSIS reported success but the standalone uninstaller was not created: $uninstallerPath"
+}
+
+foreach ($artifactPath in @($installerPath, $uninstallerPath)) {
+    $artifact = Get-Item -LiteralPath $artifactPath
+    $hash = Get-FileHash -LiteralPath $artifactPath -Algorithm SHA256
+    Write-Host "Artifact created: $($artifact.FullName)"
+    Write-Host "Size: $($artifact.Length) bytes"
+    Write-Host "SHA256: $($hash.Hash)"
+}

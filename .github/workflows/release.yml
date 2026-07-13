@@ -1,0 +1,68 @@
+name: Release Windows executables
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.16.0"
+          cache: npm
+
+      - name: Verify tag matches package version
+        shell: pwsh
+        run: |
+          $package = Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json
+          $expectedTag = "v$($package.version)"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Tag '$env:GITHUB_REF_NAME' does not match package version '$expectedTag'."
+          }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download NSIS 3.12
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "nsis-3.12.zip"
+          $destination = Join-Path $env:RUNNER_TEMP "nsis"
+          curl.exe -L --fail --output $archive "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12.zip"
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination
+          (Join-Path $destination "nsis-3.12") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Check and build release files
+        shell: pwsh
+        run: |
+          npm run check
+          npm run package:win
+          if (-not (Test-Path -LiteralPath release\install.exe -PathType Leaf)) {
+            throw "release\install.exe was not created."
+          }
+          if (-not (Test-Path -LiteralPath release\uninstall.exe -PathType Leaf)) {
+            throw "release\uninstall.exe was not created."
+          }
+
+      - name: Create or update GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:GITHUB_REF_NAME *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME release\install.exe release\uninstall.exe --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME release\install.exe release\uninstall.exe --generate-notes --title "ask-bridge-mcp $env:GITHUB_REF_NAME"
+          }

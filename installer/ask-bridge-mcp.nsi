@@ -11,7 +11,7 @@ RequestExecutionLevel user
   !error "STAGE_DIR is required"
 !endif
 !ifndef OUTPUT_FILE
-  !define OUTPUT_FILE "ask-bridge-mcp-install.exe"
+  !define OUTPUT_FILE "install.exe"
 !endif
 
 !define PRODUCT_NAME "ask-bridge-mcp"
