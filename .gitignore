@@ -47,6 +47,8 @@ CodeCoverage/
 # Node.js / TypeScript
 node_modules/
 dist/
+release/
+.tools/
 .npm-cache/
 npm-debug.log*
 

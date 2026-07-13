@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "m365Copilot": {
+      "type": "stdio",
+      "command": "${env:LOCALAPPDATA}\\Programs\\ask-bridge-mcp\\runtime\\node.exe",
+      "args": ["${env:LOCALAPPDATA}\\Programs\\ask-bridge-mcp\\app\\dist\\index.js"]
+    }
+  }
+}

@@ -10,7 +10,10 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "package:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1",
+    "package:win:stage": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1 -StageOnly",
+    "test:package": "node scripts/smoke-test-package.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",
