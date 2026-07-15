@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.1.2"
+  !define APP_VERSION "0.2.0"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.1.2.0"
+  !define FILE_VERSION "0.2.0.0"
 !endif
 !ifndef STAGE_DIR
   !error "STAGE_DIR is required"
@@ -72,6 +72,7 @@ Section "安裝 ask-bridge-mcp" SEC_MAIN
   ; Upgrade cleanly without touching the separately installed ask-bridge.
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\runtime"
+  RMDir /r "$INSTDIR\examples"
   Delete "$INSTDIR\ask-bridge-mcp.cmd"
   Delete "$INSTDIR\vscode-mcp.json"
   Delete "$INSTDIR\README.md"
@@ -104,6 +105,7 @@ Section "Uninstall"
 
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\runtime"
+  RMDir /r "$INSTDIR\examples"
   Delete "$INSTDIR\ask-bridge-mcp.cmd"
   Delete "$INSTDIR\vscode-mcp.json"
   Delete "$INSTDIR\README.md"

@@ -22,6 +22,8 @@ $appStageDir = Join-Path $stageDir "app"
 $runtimeStageDir = Join-Path $stageDir "runtime"
 $installerPath = Join-Path $releaseDir "install.exe"
 $uninstallerPath = Join-Path $releaseDir "uninstall.exe"
+$installerHashPath = "$installerPath.sha256"
+$uninstallerHashPath = "$uninstallerPath.sha256"
 $legacyInstallerPath = Join-Path $releaseDir "ask-bridge-mcp-install.exe"
 
 function Assert-GeneratedPath {
@@ -215,6 +217,7 @@ Copy-Item -LiteralPath $resolvedNodeExe -Destination (Join-Path $runtimeStageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\ask-bridge-mcp.cmd") -Destination $stageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\vscode-mcp.json") -Destination $stageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "README.md") -Destination $stageDir
+Copy-Item -LiteralPath (Join-Path $repoRoot "examples") -Destination (Join-Path $stageDir "examples") -Recurse
 
 $stagedNode = Join-Path $runtimeStageDir "node.exe"
 $stagedEntry = Join-Path $appStageDir "dist\index.js"
@@ -244,7 +247,7 @@ if (-not $resolvedMakeNsis) {
 }
 
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-foreach ($artifactPath in @($installerPath, $uninstallerPath, $legacyInstallerPath)) {
+foreach ($artifactPath in @($installerPath, $uninstallerPath, $installerHashPath, $uninstallerHashPath, $legacyInstallerPath)) {
     if (Test-Path -LiteralPath $artifactPath) {
         Assert-GeneratedPath -Path $artifactPath
         Remove-Item -LiteralPath $artifactPath -Force
@@ -275,7 +278,10 @@ foreach ($artifactPath in @($installerPath, $uninstallerPath)) {
     }
     $artifact = Get-Item -LiteralPath $artifactPath
     $hash = Get-Sha256 -Path $artifactPath
+    $hashPath = "$artifactPath.sha256"
+    "$($hash.ToLowerInvariant())  $($artifact.Name)" | Out-File -LiteralPath $hashPath -Encoding ascii
     Write-Host "Artifact created: $($artifact.FullName)"
     Write-Host "Size: $($artifact.Length) bytes"
     Write-Host "SHA256: $hash"
+    Write-Host "Checksum file: $hashPath"
 }

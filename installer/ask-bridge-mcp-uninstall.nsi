@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.1.2"
+  !define APP_VERSION "0.2.0"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.1.2.0"
+  !define FILE_VERSION "0.2.0.0"
 !endif
 !ifndef OUTPUT_FILE
   !define OUTPUT_FILE "uninstall.exe"
@@ -98,6 +98,7 @@ Section "Uninstall"
 
   RMDir /r "${INSTALL_DIR}\app"
   RMDir /r "${INSTALL_DIR}\runtime"
+  RMDir /r "${INSTALL_DIR}\examples"
   Delete "${INSTALL_DIR}\ask-bridge-mcp.cmd"
   Delete "${INSTALL_DIR}\vscode-mcp.json"
   Delete "${INSTALL_DIR}\README.md"

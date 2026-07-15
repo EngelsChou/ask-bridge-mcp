@@ -43,16 +43,53 @@ jobs:
           Expand-Archive -LiteralPath $archive -DestinationPath $destination
           (Join-Path $destination "nsis-3.12") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      - name: Prepare optional code-signing certificate
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_BASE64)) {
+            "ASK_BRIDGE_RELEASE_REQUIRE_SIGNATURE=false" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Write-Host "No signing certificate secret is configured; release executables will be unsigned."
+            exit 0
+          }
+
+          $certificatePath = Join-Path $env:RUNNER_TEMP "engels-chou-code-signing.pfx"
+          $base64 = $env:WINDOWS_SIGNING_CERTIFICATE_BASE64 -replace '\s', ''
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($base64))
+          "ASK_BRIDGE_SIGNING_CERTIFICATE_PATH=$certificatePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "ASK_BRIDGE_RELEASE_REQUIRE_SIGNATURE=true" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Check and build release files
         shell: pwsh
+        env:
+          ASK_BRIDGE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
         run: |
           npm run check
-          npm run package:win
+          if ($env:ASK_BRIDGE_RELEASE_REQUIRE_SIGNATURE -eq "true") {
+            .\scripts\build-windows-installer.ps1 -RequireSignature
+          } else {
+            npm run package:win
+          }
           if (-not (Test-Path -LiteralPath release\install.exe -PathType Leaf)) {
             throw "release\install.exe was not created."
           }
           if (-not (Test-Path -LiteralPath release\uninstall.exe -PathType Leaf)) {
             throw "release\uninstall.exe was not created."
+          }
+          if (-not (Test-Path -LiteralPath release\install.exe.sha256 -PathType Leaf)) {
+            throw "release\install.exe.sha256 was not created."
+          }
+          if (-not (Test-Path -LiteralPath release\uninstall.exe.sha256 -PathType Leaf)) {
+            throw "release\uninstall.exe.sha256 was not created."
+          }
+
+      - name: Remove temporary signing certificate
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:ASK_BRIDGE_SIGNING_CERTIFICATE_PATH -and (Test-Path -LiteralPath $env:ASK_BRIDGE_SIGNING_CERTIFICATE_PATH)) {
+            Remove-Item -LiteralPath $env:ASK_BRIDGE_SIGNING_CERTIFICATE_PATH -Force
           }
 
       - name: Create or update GitHub Release
@@ -62,7 +99,7 @@ jobs:
         run: |
           gh release view $env:GITHUB_REF_NAME *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:GITHUB_REF_NAME release\install.exe release\uninstall.exe --clobber
+            gh release upload $env:GITHUB_REF_NAME release\install.exe release\uninstall.exe release\install.exe.sha256 release\uninstall.exe.sha256 --clobber
           } else {
-            gh release create $env:GITHUB_REF_NAME release\install.exe release\uninstall.exe --generate-notes --title "ask-bridge-mcp $env:GITHUB_REF_NAME"
+            gh release create $env:GITHUB_REF_NAME release\install.exe release\uninstall.exe release\install.exe.sha256 release\uninstall.exe.sha256 --generate-notes --title "ask-bridge-mcp $env:GITHUB_REF_NAME"
           }
