@@ -66,6 +66,7 @@ jobs:
           ASK_BRIDGE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
         run: |
           npm run check
+          npm test
           if ($env:ASK_BRIDGE_RELEASE_REQUIRE_SIGNATURE -eq "true") {
             .\scripts\build-windows-installer.ps1 -RequireSignature
           } else {
@@ -83,6 +84,7 @@ jobs:
           if (-not (Test-Path -LiteralPath release\uninstall.exe.sha256 -PathType Leaf)) {
             throw "release\uninstall.exe.sha256 was not created."
           }
+          npm run test:package
 
       - name: Remove temporary signing certificate
         if: always()
