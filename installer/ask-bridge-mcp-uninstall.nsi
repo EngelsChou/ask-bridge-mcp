@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.1.1"
+  !define APP_VERSION "0.1.2"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.1.1.0"
+  !define FILE_VERSION "0.1.2.0"
 !endif
 !ifndef OUTPUT_FILE
   !define OUTPUT_FILE "uninstall.exe"
@@ -16,6 +16,7 @@ RequestExecutionLevel user
 
 !define PRODUCT_NAME "ask-bridge-mcp"
 !define PRODUCT_DESCRIPTION "Microsoft 365 Copilot MCP bridge"
+!define PRODUCT_PUBLISHER "Engels Chou"
 !define PRODUCT_REG_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ask-bridge-mcp"
 
 Name "${PRODUCT_NAME} ${APP_VERSION} 解除安裝"
@@ -32,7 +33,8 @@ VIAddVersionKey /LANG=1028 "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey /LANG=1028 "FileDescription" "${PRODUCT_DESCRIPTION} 獨立解除安裝程式"
 VIAddVersionKey /LANG=1028 "FileVersion" "${APP_VERSION}"
 VIAddVersionKey /LANG=1028 "ProductVersion" "${APP_VERSION}"
-VIAddVersionKey /LANG=1028 "LegalCopyright" "ask-bridge-mcp contributors"
+VIAddVersionKey /LANG=1028 "CompanyName" "${PRODUCT_PUBLISHER}"
+VIAddVersionKey /LANG=1028 "LegalCopyright" "Copyright (c) ${PRODUCT_PUBLISHER}"
 
 !include "MUI2.nsh"
 

@@ -2,6 +2,12 @@
 param(
     [string]$NodeExe,
     [string]$MakeNsis,
+    [string]$SignTool,
+    [string]$CertificateThumbprint,
+    [string]$CertificatePath,
+    [string]$CertificatePassword,
+    [string]$TimestampUrl = "http://timestamp.digicert.com",
+    [switch]$RequireSignature,
     [switch]$Offline,
     [switch]$StageOnly
 )
@@ -70,9 +76,82 @@ function Get-Sha256 {
     }
 }
 
+function Resolve-SigningConfiguration {
+    if (-not $CertificateThumbprint) {
+        $script:CertificateThumbprint = $env:ASK_BRIDGE_SIGNING_CERTIFICATE_THUMBPRINT
+    }
+    if (-not $CertificatePath) {
+        $script:CertificatePath = $env:ASK_BRIDGE_SIGNING_CERTIFICATE_PATH
+    }
+    if (-not $CertificatePassword) {
+        $script:CertificatePassword = $env:ASK_BRIDGE_SIGNING_CERTIFICATE_PASSWORD
+    }
+
+    if ($CertificateThumbprint -and $CertificatePath) {
+        throw "Specify either CertificateThumbprint or CertificatePath, not both."
+    }
+    if (-not $CertificateThumbprint -and -not $CertificatePath) {
+        if ($RequireSignature) {
+            throw "A code-signing certificate is required. Pass -CertificateThumbprint or -CertificatePath, or configure the ASK_BRIDGE_SIGNING_CERTIFICATE_* environment variables."
+        }
+        return $null
+    }
+
+    $windowsKitsRoot = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
+    $kitSignTool = Get-ChildItem -Path (Join-Path $windowsKitsRoot "*\x64\signtool.exe") -File -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+    $signToolFallbacks = @(
+        $(if ($kitSignTool) { $kitSignTool.FullName }),
+        (Join-Path $env:ProgramFiles "Windows Kits\10\App Certification Kit\signtool.exe")
+    )
+    $resolvedSignTool = Resolve-Executable -ExplicitPath $SignTool -CommandName "signtool.exe" -FallbackPaths $signToolFallbacks
+    if (-not $resolvedSignTool) {
+        throw "A signing certificate was configured, but signtool.exe was not found. Install the Windows SDK or pass -SignTool <path>."
+    }
+
+    if ($CertificatePath) {
+        $script:CertificatePath = [IO.Path]::GetFullPath($CertificatePath)
+        if (-not (Test-Path -LiteralPath $CertificatePath -PathType Leaf)) {
+            throw "Code-signing certificate file not found: $CertificatePath"
+        }
+    }
+
+    return $resolvedSignTool
+}
+
+function Invoke-CodeSigning {
+    param(
+        [Parameter(Mandatory)][string]$ResolvedSignTool,
+        [Parameter(Mandatory)][string]$Path
+    )
+
+    $arguments = @("sign", "/fd", "SHA256", "/td", "SHA256", "/tr", $TimestampUrl, "/d", "ask-bridge-mcp", "/v")
+    if ($CertificateThumbprint) {
+        $arguments += @("/s", "My", "/sha1", ($CertificateThumbprint -replace '\s', ''))
+    } else {
+        $arguments += @("/f", $CertificatePath)
+        if ($CertificatePassword) {
+            $arguments += @("/p", $CertificatePassword)
+        }
+    }
+    $arguments += $Path
+
+    & $ResolvedSignTool @arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Authenticode signing failed for $Path with exit code $LASTEXITCODE."
+    }
+    & $ResolvedSignTool verify /pa /v $Path
+    if ($LASTEXITCODE -ne 0) {
+        throw "Authenticode verification failed for $Path with exit code $LASTEXITCODE."
+    }
+}
+
 if ($env:OS -ne "Windows_NT") {
     throw "The Windows installer can only be built on Windows."
 }
+
+$resolvedSignTool = Resolve-SigningConfiguration
 
 $package = Get-Content -LiteralPath (Join-Path $repoRoot "package.json") -Raw -Encoding UTF8 | ConvertFrom-Json
 $appVersion = [string]$package.version
@@ -191,6 +270,9 @@ if (-not (Test-Path -LiteralPath $uninstallerPath -PathType Leaf)) {
 }
 
 foreach ($artifactPath in @($installerPath, $uninstallerPath)) {
+    if ($resolvedSignTool) {
+        Invoke-CodeSigning -ResolvedSignTool $resolvedSignTool -Path $artifactPath
+    }
     $artifact = Get-Item -LiteralPath $artifactPath
     $hash = Get-Sha256 -Path $artifactPath
     Write-Host "Artifact created: $($artifact.FullName)"

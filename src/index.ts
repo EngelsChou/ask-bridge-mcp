@@ -4,7 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { askM365Copilot } from "./ask-bridge.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.1.0" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.1.2" });
 
 server.registerTool(
   "ask_m365_copilot",
@@ -27,9 +27,14 @@ server.registerTool(
         .describe("Maximum ask-bridge response wait in seconds"),
     },
   },
-  async ({ prompt, newConversation, timeoutSeconds }) => {
+  async ({ prompt, newConversation, timeoutSeconds }, { signal }) => {
     try {
-      const answer = await askM365Copilot({ prompt, newConversation, timeoutSeconds });
+      const answer = await askM365Copilot({
+        prompt,
+        newConversation,
+        timeoutSeconds,
+        signal,
+      });
       return { content: [{ type: "text", text: answer }] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

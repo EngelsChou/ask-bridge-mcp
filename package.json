@@ -1,6 +1,6 @@
 {
   "name": "ask-bridge-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Local MCP server that exposes Microsoft 365 Copilot through ask-bridge.",
@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
     "start": "node dist/index.js",
     "package:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1",
     "package:win:stage": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1 -StageOnly",
