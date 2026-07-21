@@ -4,11 +4,18 @@ import {
   type AttachmentDependencies,
   type AttachmentInputs,
 } from "./attachments.js";
+import {
+  createRequestId,
+  emitDiagnostic,
+  type DiagnosticReporter,
+} from "./diagnostics.js";
 
 export interface AskOptions extends AttachmentInputs {
   prompt: string;
   timeoutSeconds: number;
   newConversation: boolean;
+  /** Correlates MCP and ask-bridge diagnostics; never derived from prompt text. */
+  requestId?: string;
   signal?: AbortSignal;
 }
 
@@ -17,6 +24,7 @@ export interface AskBridgeInvocation {
   args: string[];
   stdin: string;
   windowsHide: boolean;
+  requestId?: string;
 }
 
 export interface AskBridgeResult {
@@ -41,6 +49,8 @@ export interface AskBridgeExecutionDependencies {
   /** Receives cleanup failures without changing the tool call's result. */
   onCleanupError?: (failure: AttachmentCleanupFailure) => void | Promise<void>;
   cleanupRetryDelayMs?: number;
+  /** Test/lifecycle injection; production writes structured stderr and JSONL diagnostics. */
+  onDiagnostic?: DiagnosticReporter;
 }
 
 type ReleaseLock = () => void;
@@ -107,9 +117,10 @@ class FifoAsyncMutex {
 
 const copilotRequestMutex = new FifoAsyncMutex();
 const verifiedAskBridgeVersions = new WeakMap<AskBridgeRunner, Map<string, string>>();
-const MINIMUM_ASK_BRIDGE_VERSION = [0, 3, 0] as const;
+const MINIMUM_ASK_BRIDGE_VERSION = [0, 3, 8] as const;
 const CLEANUP_ATTEMPTS = 3;
 const DEFAULT_CLEANUP_RETRY_DELAY_MS = 50;
+const PROCESS_CLOSE_GRACE_MS = 1_000;
 
 function executable(): string {
   return process.env.ASK_BRIDGE_PATH?.trim() || "ask-bridge";
@@ -129,28 +140,31 @@ export function buildCopilotQueryInvocation(options: AskOptions): AskBridgeInvoc
     // the prompt through stdin and close the pipe explicitly.
     stdin: options.prompt,
     windowsHide: true,
+    requestId: options.requestId,
   };
 }
 
-function buildVersionInvocation(): AskBridgeInvocation {
+function buildVersionInvocation(requestId?: string): AskBridgeInvocation {
   return {
     kind: "version",
     args: ["--version"],
     stdin: "",
     windowsHide: true,
+    requestId,
   };
 }
 
-function buildCloseInvocation(): AskBridgeInvocation {
+function buildCloseInvocation(requestId?: string): AskBridgeInvocation {
   return {
     kind: "close",
     args: ["--provider", "copilot", "close"],
     stdin: "",
     windowsHide: true,
+    requestId,
   };
 }
 
-function buildLoginInvocation(timeoutSeconds: number): AskBridgeInvocation {
+function buildLoginInvocation(timeoutSeconds: number, requestId?: string): AskBridgeInvocation {
   return {
     kind: "login",
     args: ["--provider", "copilot", "--timeout", String(timeoutSeconds), "login"],
@@ -158,6 +172,7 @@ function buildLoginInvocation(timeoutSeconds: number): AskBridgeInvocation {
     // The login subcommand launches headful Chrome. Do not ask Windows to hide
     // the process tree that owns that first interactive login.
     windowsHide: false,
+    requestId,
   };
 }
 
@@ -205,20 +220,22 @@ function isSupportedVersion(version: ParsedVersion): boolean {
 }
 
 function versionUpgradeGuidance(detail: string): string {
-  return `${detail} Upgrade ask-bridge to version 0.3.0 or later, then fully restart VS Code so the MCP server reloads the installed executable.`;
+  return `${detail} Upgrade ask-bridge to version 0.3.8 or later, then fully restart VS Code so the MCP server reloads the installed executable.`;
 }
 
 async function ensureSupportedAskBridgeVersion(
   runner: AskBridgeRunner,
+  requestId?: string,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<string> {
   const command = executable();
   const cachedByCommand = verifiedAskBridgeVersions.get(runner);
-  if (cachedByCommand?.has(command)) return;
+  const cachedVersion = cachedByCommand?.get(command);
+  if (cachedVersion) return cachedVersion;
 
   let result: AskBridgeResult;
   try {
-    result = await runner(buildVersionInvocation(), signal);
+    result = await runner(buildVersionInvocation(requestId), signal);
   } catch (error) {
     if (isAbortError(error, signal)) throw error;
     const detail = error instanceof Error ? error.message : String(error);
@@ -240,7 +257,7 @@ async function ensureSupportedAskBridgeVersion(
   if (!isSupportedVersion(version)) {
     throw new Error(
       versionUpgradeGuidance(
-        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.0 or later.`,
+        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.8 or later.`,
       ),
     );
   }
@@ -248,6 +265,7 @@ async function ensureSupportedAskBridgeVersion(
   const versions = cachedByCommand ?? new Map<string, string>();
   versions.set(command, version.text);
   if (!cachedByCommand) verifiedAskBridgeVersions.set(runner, versions);
+  return version.text;
 }
 
 function defaultCleanupReporter(failure: AttachmentCleanupFailure): void {
@@ -318,10 +336,19 @@ async function runAskBridge(
 
   return new Promise((resolve, reject) => {
     const command = executable();
+    const requestId = invocation.requestId ?? createRequestId();
+    const startedAt = Date.now();
+    emitDiagnostic(requestId, "process_started", {
+      kind: invocation.kind,
+      argument_count: invocation.args.length,
+      stdin_character_count: Array.from(invocation.stdin).length,
+      stdin_line_break_count: (invocation.stdin.match(/\r\n|\r|\n/g) ?? []).length,
+    });
     const child = spawn(command, invocation.args, {
       windowsHide: invocation.windowsHide,
       shell: false,
       stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, ASK_BRIDGE_REQUEST_ID: requestId },
     });
 
     let stdout = "";
@@ -329,8 +356,13 @@ async function runAskBridge(
     let stdinError: Error | undefined;
     let settled = false;
     let canceled = false;
+    let exitCode: number | null | undefined;
+    let closeGraceTimer: NodeJS.Timeout | undefined;
 
-    const cleanup = () => signal?.removeEventListener("abort", onAbort);
+    const cleanup = () => {
+      signal?.removeEventListener("abort", onAbort);
+      if (closeGraceTimer) clearTimeout(closeGraceTimer);
+    };
     const fail = (error: Error) => {
       if (settled) return;
       settled = true;
@@ -354,16 +386,31 @@ async function runAskBridge(
       stdinError = error;
     });
     child.once("error", (error) => {
+      emitDiagnostic(requestId, "process_start_failed", {
+        kind: invocation.kind,
+        duration_ms: Date.now() - startedAt,
+        error_name: error.name,
+      });
       fail(
         canceled || signal?.aborted
           ? abortError()
           : new Error(`Unable to start ask-bridge at '${command}': ${error.message}`),
       );
     });
-    child.once("close", (code) => {
+    const complete = (code: number | null, completionSignal: "close" | "exit_grace_timeout") => {
       if (settled) return;
       settled = true;
       cleanup();
+
+      emitDiagnostic(requestId, "process_exited", {
+        kind: invocation.kind,
+        duration_ms: Date.now() - startedAt,
+        exit_code: code,
+        canceled: canceled || signal?.aborted === true,
+        stdout_character_count: Array.from(stdout).length,
+        stderr_character_count: Array.from(stderr).length,
+        completion_signal: completionSignal,
+      });
 
       if (canceled || signal?.aborted) {
         reject(abortError());
@@ -386,6 +433,22 @@ async function runAskBridge(
         return;
       }
       resolve({ stdout, stderr });
+    };
+
+    child.once("exit", (code) => {
+      exitCode = code;
+      // A detached browser may outlive ask-bridge and accidentally retain one
+      // of its inherited stdio handles. Prefer the normal `close` event so all
+      // output is drained, but never let that descendant block VS Code forever
+      // after the actual CLI process has already exited.
+      closeGraceTimer = setTimeout(
+        () => complete(code, "exit_grace_timeout"),
+        PROCESS_CLOSE_GRACE_MS,
+      );
+      closeGraceTimer.unref();
+    });
+    child.once("close", (code) => {
+      complete(code ?? exitCode ?? null, "close");
     });
 
     child.stdin.end(invocation.stdin, "utf8");
@@ -425,15 +488,54 @@ export async function askM365CopilotWithRunner(
   attachmentDependencies: AttachmentDependencies = {},
   executionDependencies: AskBridgeExecutionDependencies = {},
 ): Promise<string> {
-  const release = await copilotRequestMutex.acquire(options.signal);
+  const requestId = options.requestId ?? createRequestId();
+  const startedAt = Date.now();
+  const diagnostic =
+    executionDependencies.onDiagnostic ??
+    ((event: string, details: Record<string, unknown>) =>
+      emitDiagnostic(requestId, event, details));
+  const report = (event: string, details: Record<string, unknown>) => {
+    try {
+      diagnostic(event, details);
+    } catch {
+      // Diagnostics are deliberately best-effort.
+    }
+  };
+  let stage = "queue";
+  let release: ReleaseLock | undefined;
+
+  report("request_queued", {
+    prompt_character_count: Array.from(options.prompt).length,
+    prompt_line_break_count: (options.prompt.match(/\r\n|\r|\n/g) ?? []).length,
+    timeout_seconds: options.timeoutSeconds,
+    new_conversation: options.newConversation,
+    requested_attachment_count:
+      (options.imagePaths?.length ?? 0) +
+      (options.filePaths?.length ?? 0) +
+      (options.inlineImages?.length ?? 0) +
+      Number(options.includeClipboardImage === true),
+  });
+
   try {
-    await ensureSupportedAskBridgeVersion(runner, options.signal);
+    release = await copilotRequestMutex.acquire(options.signal);
+    report("request_started", { queue_duration_ms: Date.now() - startedAt });
+
+    stage = "version_check";
+    const version = await ensureSupportedAskBridgeVersion(runner, requestId, options.signal);
+    report("version_verified", { ask_bridge_version: version });
+
+    stage = "attachment_preparation";
     const prepare = executionDependencies.prepareAttachments ?? prepareAttachments;
     const attachments = await prepare(options, options.signal, attachmentDependencies);
+    report("attachments_prepared", {
+      image_count: attachments.imagePaths.length,
+      file_count: attachments.filePaths.length,
+    });
 
     try {
       const preparedOptions: AskOptions = {
         ...options,
+        requestId,
         imagePaths: attachments.imagePaths,
         filePaths: attachments.filePaths,
         inlineImages: [],
@@ -442,35 +544,59 @@ export async function askM365CopilotWithRunner(
       const query = () =>
         runner(buildCopilotQueryInvocation(preparedOptions), options.signal).then(answerFrom);
 
+      let answer: string;
+      stage = "query";
       try {
-        return await query();
+        answer = await query();
       } catch (error) {
         if (!requiresInteractiveLogin(error)) throw error;
-      }
+        report("interactive_login_required", {});
 
-      // A normal query intentionally starts ask-bridge in background mode. If that
-      // fresh profile is logged out, stop only the managed instance and relaunch
-      // the dedicated login command so Chrome is visible to the user. Once login
-      // completes, retry the original prompt and attachments automatically.
-      await runner(buildCloseInvocation(), options.signal);
-      await runner(buildLoginInvocation(options.timeoutSeconds), options.signal);
+        // A normal query intentionally starts ask-bridge in background mode. If that
+        // fresh profile is logged out, stop only the managed instance and relaunch
+        // the dedicated login command so Chrome is visible to the user. Once login
+        // completes, retry the original prompt and attachments automatically.
+        stage = "interactive_login";
+        await runner(buildCloseInvocation(requestId), options.signal);
+        await runner(buildLoginInvocation(options.timeoutSeconds, requestId), options.signal);
+        report("interactive_login_completed", {});
 
-      try {
-        return await query();
-      } catch (error) {
-        if (requiresInteractiveLogin(error)) {
-          throw new Error(
-            "Microsoft 365 Copilot sign-in was not completed. Finish signing in in the ask-bridge Chrome window, then retry the tool call.",
-            { cause: error },
-          );
+        stage = "query_retry";
+        try {
+          answer = await query();
+        } catch (retryError) {
+          if (requiresInteractiveLogin(retryError)) {
+            throw new Error(
+              "Microsoft 365 Copilot sign-in was not completed. Finish signing in in the ask-bridge Chrome window, then retry the tool call.",
+              { cause: retryError },
+            );
+          }
+          throw retryError;
         }
-        throw error;
       }
+
+      stage = "completed";
+      report("request_succeeded", {
+        duration_ms: Date.now() - startedAt,
+        response_character_count: Array.from(answer).length,
+      });
+      return answer;
     } finally {
       await cleanupAttachmentsBestEffort(attachments.cleanup, executionDependencies);
     }
+  } catch (error) {
+    report(options.signal?.aborted ? "request_canceled" : "request_failed", {
+      stage,
+      duration_ms: Date.now() - startedAt,
+      error_name: error instanceof Error ? error.name : "UnknownError",
+    });
+    throw error;
   } finally {
-    release();
+    release?.();
+    report("request_finished", {
+      duration_ms: Date.now() - startedAt,
+      lock_released: release !== undefined,
+    });
   }
 }
 

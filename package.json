@@ -1,6 +1,6 @@
 {
   "name": "ask-bridge-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Local MCP server that exposes Microsoft 365 Copilot through ask-bridge.",

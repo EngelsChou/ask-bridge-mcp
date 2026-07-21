@@ -4,8 +4,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { askM365Copilot } from "./ask-bridge.js";
 import { MAX_ATTACHMENTS } from "./attachments.js";
+import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.0" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.1" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -98,8 +99,10 @@ server.registerTool(
     },
     { signal },
   ) => {
+    const requestId = createRequestId();
     try {
       const answer = await askM365Copilot({
+        requestId,
         prompt,
         imagePaths,
         filePaths,
@@ -110,9 +113,17 @@ server.registerTool(
         timeoutSeconds,
         signal,
       });
+      emitDiagnostic(requestId, "tool_result_returned", {
+        is_error: false,
+        response_character_count: Array.from(answer).length,
+      });
       return { content: [{ type: "text", text: answer }] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      emitDiagnostic(requestId, "tool_result_returned", {
+        is_error: true,
+        error_name: error instanceof Error ? error.name : "UnknownError",
+      });
       return {
         isError: true,
         content: [{ type: "text", text: `Microsoft 365 Copilot request failed: ${message}` }],

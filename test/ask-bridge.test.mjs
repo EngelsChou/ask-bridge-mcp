@@ -48,7 +48,7 @@ const options = {
 function withSupportedVersion(runner) {
   return (invocation, signal) =>
     invocation.kind === "version"
-      ? Promise.resolve({ stdout: "ask-bridge 0.3.0\n", stderr: "" })
+      ? Promise.resolve({ stdout: "ask-bridge 0.3.8\n", stderr: "" })
       : runner(invocation, signal);
 }
 

@@ -27,7 +27,7 @@ async function waitFor(predicate, message) {
 }
 
 function supportedVersion() {
-  return { stdout: "ask-bridge 0.3.0\n", stderr: "" };
+  return { stdout: "ask-bridge 0.3.8\n", stderr: "" };
 }
 
 test("runs concurrent tool calls one at a time in FIFO order", async (t) => {
@@ -261,12 +261,12 @@ test("cleanup failures never replace a successful answer or the original query e
   );
 });
 
-test("rejects ask-bridge older than 0.3.0 before querying with upgrade guidance", async () => {
+test("rejects ask-bridge older than 0.3.8 before querying with upgrade guidance", async () => {
   const kinds = [];
   const runner = async (invocation) => {
     kinds.push(invocation.kind);
     if (invocation.kind === "version") {
-      return { stdout: "ask-bridge 0.2.9\n", stderr: "" };
+      return { stdout: "ask-bridge 0.3.7\n", stderr: "" };
     }
     assert.fail("an unsupported ask-bridge must not receive a query");
   };
@@ -274,7 +274,7 @@ test("rejects ask-bridge older than 0.3.0 before querying with upgrade guidance"
   await assert.rejects(
     askM365CopilotWithRunner(baseOptions, runner),
     (error) =>
-      /requires ask-bridge 0\.3\.0 or later/i.test(error.message) &&
+      /requires ask-bridge 0\.3\.8 or later/i.test(error.message) &&
       /upgrade ask-bridge/i.test(error.message) &&
       /restart VS Code/i.test(error.message),
   );
@@ -287,7 +287,7 @@ test("caches a successful version check for repeated calls using the same runner
   const runner = async (invocation) => {
     if (invocation.kind === "version") {
       versionChecks += 1;
-      return { stdout: "ask-bridge v0.3.1\n", stderr: "" };
+      return { stdout: "ask-bridge v0.3.8\n", stderr: "" };
     }
     queries += 1;
     return { stdout: `answer ${queries}\n`, stderr: "" };

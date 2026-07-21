@@ -6,11 +6,11 @@
 
 執行前請確認已經準備好：
 
-- 已安裝 `ask-bridge 0.3.0` 或更新版本，且可從系統 `PATH` 執行
+- 已安裝 `ask-bridge 0.3.8` 或更新版本，且可從系統 `PATH` 執行
 - Google Chrome
 - 可使用 Microsoft 365 Copilot 的帳號
 
-MCP Server 會在第一個請求先執行 `ask-bridge --version`，低於 `0.3.0` 會停止並提示升級；升級後必須完整關閉再開啟 VS Code，讓 MCP Server 重新載入執行檔。
+MCP Server 會在第一個請求先執行 `ask-bridge --version`，低於 `0.3.8` 會停止並提示升級；升級後必須完整關閉再開啟 VS Code，讓 MCP Server 重新載入執行檔。
 
 先確認獨立安裝的 `ask-bridge` 可以使用：
 
@@ -194,7 +194,7 @@ release\install.exe.sha256
 release\uninstall.exe.sha256
 ```
 
-推送與 `package.json` 版本相同的 tag（例如 `v0.2.0`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
+推送與 `package.json` 版本相同的 tag（例如 `v0.2.1`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 
@@ -228,6 +228,18 @@ npm run build
 ```
 
 然後在 VS Code 執行 **MCP: List Servers**，重新啟動 `m365Copilot` Server。
+
+## 診斷紀錄
+
+每次工具呼叫都會產生不含 prompt／回覆本文的 `request_id`，用來串起 VS Code MCP、`ask-bridge` 子程序與回傳結果。MCP 的結構化 JSONL 會寫入 stderr（可在 VS Code 的 MCP Server log 查看），並保留在：
+
+```text
+%USERPROFILE%\.config\ask-bridge\mcp-diagnostics.jsonl
+```
+
+底層瀏覽器自動化紀錄位於同一目錄的 `copilot-diagnostics.jsonl`。兩份紀錄都只保存字元數、換行數、DOM 計數、階段、耗時、exit code 等 metadata；不保存問題或回答本文，超過 2 MiB 時會輪替。
+
+可用 `ASK_BRIDGE_MCP_DIAGNOSTICS_PATH` 指定 MCP log 的絕對路徑；設為 `off` 可停用檔案紀錄（stderr 仍保留）。
 
 ## 注意事項
 
