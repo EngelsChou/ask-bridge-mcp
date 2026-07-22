@@ -1,6 +1,6 @@
 {
   "name": "ask-bridge-mcp",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
   "description": "Local MCP server that exposes Microsoft 365 Copilot through ask-bridge.",
@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",
+    "chrome-devtools-mcp": "1.5.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
