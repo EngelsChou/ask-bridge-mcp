@@ -6,7 +6,7 @@ import { askM365Copilot } from "./ask-bridge.js";
 import { MAX_ATTACHMENTS } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.1" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.2" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -32,13 +32,22 @@ server.registerTool(
   {
     title: "Ask Microsoft 365 Copilot",
     description:
-      "Delegate a software-development question or task to Microsoft 365 Copilot through the user's local ask-bridge Chrome session. The prompt itself leaves the local machine: never put workspace file contents or secrets discovered by the agent into prompt unless the user explicitly requested that exact content be sent to M365. Attachments also cross this external-data boundary: include only files or images the user explicitly identified or explicitly asked to send to M365, and set attachmentConsent=true only for that request. Never discover or select 'relevant' attachment paths on the user's behalf. Local paths must be inside ASK_BRIDGE_ALLOWED_ROOTS and sensitive files are always blocked. Images merely attached to the host chat are not automatically forwarded. When the user has just pasted a screenshot and explicitly wants that original image sent to M365, set includeClipboardImage=true and attachmentConsent=true before any clipboard-changing action.",
+      "Delegate a software-development question or task to Microsoft 365 Copilot through the user's local ask-bridge Chrome session. The VS Code Chat model picker controls the host model, not the downstream Microsoft 365 Copilot model; use this tool's model field when the user requests a Microsoft 365 response mode or model. The prompt itself leaves the local machine: never put workspace file contents or secrets discovered by the agent into prompt unless the user explicitly requested that exact content be sent to M365. Attachments also cross this external-data boundary: include only files or images the user explicitly identified or explicitly asked to send to M365, and set attachmentConsent=true only for that request. Never discover or select 'relevant' attachment paths on the user's behalf. Local paths must be inside ASK_BRIDGE_ALLOWED_ROOTS and sensitive files are always blocked. Images and files attached to the host chat are not automatically forwarded; pass approved local files through imagePaths or filePaths. When the user has just pasted a screenshot and explicitly wants that original image sent to M365, set includeClipboardImage=true and attachmentConsent=true before any clipboard-changing action.",
     inputSchema: {
       prompt: z
         .string()
         .min(1)
         .describe(
           "The complete prompt that will leave the local machine and be sent to Microsoft 365 Copilot; do not include agent-discovered workspace contents or secrets unless the user explicitly asked to transmit that exact content",
+        ),
+      model: z
+        .string()
+        .trim()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe(
+          "Optional Microsoft 365 Copilot mode or visible model name, such as Auto, Quick response, Think deeper, GPT-5.2, or Claude; availability depends on the signed-in tenant and differs from the VS Code Chat model picker",
         ),
       imagePaths: z
         .array(z.string().min(1))
@@ -89,6 +98,7 @@ server.registerTool(
   async (
     {
       prompt,
+      model,
       imagePaths,
       filePaths,
       inlineImages,
@@ -104,6 +114,7 @@ server.registerTool(
       const answer = await askM365Copilot({
         requestId,
         prompt,
+        model,
         imagePaths,
         filePaths,
         inlineImages,

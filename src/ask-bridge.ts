@@ -12,6 +12,8 @@ import {
 
 export interface AskOptions extends AttachmentInputs {
   prompt: string;
+  /** Optional visible Microsoft 365 Copilot response mode or model name. */
+  model?: string;
   timeoutSeconds: number;
   newConversation: boolean;
   /** Correlates MCP and ask-bridge diagnostics; never derived from prompt text. */
@@ -117,7 +119,7 @@ class FifoAsyncMutex {
 
 const copilotRequestMutex = new FifoAsyncMutex();
 const verifiedAskBridgeVersions = new WeakMap<AskBridgeRunner, Map<string, string>>();
-const MINIMUM_ASK_BRIDGE_VERSION = [0, 3, 8] as const;
+const MINIMUM_ASK_BRIDGE_VERSION = [0, 3, 9] as const;
 const CLEANUP_ATTEMPTS = 3;
 const DEFAULT_CLEANUP_RETRY_DELAY_MS = 50;
 const PROCESS_CLOSE_GRACE_MS = 1_000;
@@ -129,6 +131,7 @@ function executable(): string {
 export function buildCopilotQueryInvocation(options: AskOptions): AskBridgeInvocation {
   const args = ["--provider", "copilot", "--timeout", String(options.timeoutSeconds)];
   if (options.newConversation) args.push("--new");
+  if (options.model?.trim()) args.push("--model", options.model.trim());
   for (const imagePath of options.imagePaths ?? []) args.push("--image", imagePath);
   for (const filePath of options.filePaths ?? []) args.push("--file", filePath);
 
@@ -220,7 +223,7 @@ function isSupportedVersion(version: ParsedVersion): boolean {
 }
 
 function versionUpgradeGuidance(detail: string): string {
-  return `${detail} Upgrade ask-bridge to version 0.3.8 or later, then fully restart VS Code so the MCP server reloads the installed executable.`;
+  return `${detail} Upgrade ask-bridge to version 0.3.9 or later, then fully restart VS Code so the MCP server reloads the installed executable.`;
 }
 
 async function ensureSupportedAskBridgeVersion(
@@ -257,7 +260,7 @@ async function ensureSupportedAskBridgeVersion(
   if (!isSupportedVersion(version)) {
     throw new Error(
       versionUpgradeGuidance(
-        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.8 or later.`,
+        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.9 or later.`,
       ),
     );
   }
