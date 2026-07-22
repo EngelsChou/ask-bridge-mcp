@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$NodeExe,
+    [string]$AskBridgeArchive,
     [string]$MakeNsis,
     [string]$SignTool,
     [string]$CertificateThumbprint,
@@ -19,6 +20,7 @@ $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $releaseDir = [IO.Path]::GetFullPath((Join-Path $repoRoot "release"))
 $stageDir = [IO.Path]::GetFullPath((Join-Path $releaseDir "stage"))
 $appStageDir = Join-Path $stageDir "app"
+$bridgeStageDir = Join-Path $stageDir "bridge"
 $runtimeStageDir = Join-Path $stageDir "runtime"
 $installerPath = Join-Path $releaseDir "install.exe"
 $uninstallerPath = Join-Path $releaseDir "uninstall.exe"
@@ -156,11 +158,20 @@ if ($env:OS -ne "Windows_NT") {
 $resolvedSignTool = Resolve-SigningConfiguration
 
 $package = Get-Content -LiteralPath (Join-Path $repoRoot "package.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+$componentsPath = Join-Path $repoRoot "installer\components.json"
+$components = Get-Content -LiteralPath $componentsPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $appVersion = [string]$package.version
 if ($appVersion -notmatch '^(\d+)\.(\d+)\.(\d+)') {
     throw "package.json version must begin with major.minor.patch: $appVersion"
 }
 $fileVersion = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+$askBridgeVersion = [string]$components.askBridge.version
+$askBridgeArchiveUrl = [string]$components.askBridge.archiveUrl
+$askBridgeArchiveSha256 = ([string]$components.askBridge.archiveSha256).ToLowerInvariant()
+$chromeDevtoolsMcpVersion = [string]$components.chromeDevtoolsMcp.version
+if ([string]$package.dependencies.'chrome-devtools-mcp' -cne $chromeDevtoolsMcpVersion) {
+    throw "package.json must pin chrome-devtools-mcp to $chromeDevtoolsMcpVersion."
+}
 
 $npmExe = Resolve-Executable -CommandName "npm.cmd"
 if (-not $npmExe) {
@@ -178,6 +189,37 @@ if ($nodeVersion -lt [Version]"20.19.0") {
     throw "Node.js 20.19.0 or newer is required to build the package; found $nodeVersionText."
 }
 
+if ($AskBridgeArchive) {
+    $resolvedAskBridgeArchive = [IO.Path]::GetFullPath($AskBridgeArchive)
+    if (-not (Test-Path -LiteralPath $resolvedAskBridgeArchive -PathType Leaf)) {
+        throw "ask-bridge archive not found: $resolvedAskBridgeArchive"
+    }
+} else {
+    $componentCacheDir = Join-Path $releaseDir "component-cache"
+    $resolvedAskBridgeArchive = Join-Path $componentCacheDir "ask-bridge-v$askBridgeVersion.zip"
+    if (-not (Test-Path -LiteralPath $resolvedAskBridgeArchive -PathType Leaf)) {
+        if ($Offline) {
+            throw "Offline packaging requires -AskBridgeArchive <path>, or the verified cache file $resolvedAskBridgeArchive."
+        }
+        Assert-GeneratedPath -Path $componentCacheDir
+        New-Item -ItemType Directory -Path $componentCacheDir -Force | Out-Null
+        $curlExe = Resolve-Executable -CommandName "curl.exe"
+        if (-not $curlExe) {
+            throw "curl.exe is required to download the pinned ask-bridge component. Pass -AskBridgeArchive <path> to build without downloading."
+        }
+        Write-Host "Downloading ask-bridge $askBridgeVersion from its pinned GitHub Release"
+        & $curlExe -L --fail --output $resolvedAskBridgeArchive $askBridgeArchiveUrl
+        if ($LASTEXITCODE -ne 0) {
+            throw "ask-bridge component download failed with exit code $LASTEXITCODE."
+        }
+    }
+}
+
+$actualAskBridgeArchiveSha256 = (Get-Sha256 -Path $resolvedAskBridgeArchive).ToLowerInvariant()
+if ($actualAskBridgeArchiveSha256 -cne $askBridgeArchiveSha256) {
+    throw "ask-bridge archive SHA-256 mismatch. Expected $askBridgeArchiveSha256, found $actualAskBridgeArchiveSha256."
+}
+
 Write-Host "Building ask-bridge-mcp $appVersion with Node.js $nodeVersionText"
 & $npmExe run build --prefix $repoRoot
 if ($LASTEXITCODE -ne 0) {
@@ -189,7 +231,17 @@ if (Test-Path -LiteralPath $stageDir) {
     Remove-Item -LiteralPath $stageDir -Recurse -Force
 }
 New-Item -ItemType Directory -Path $appStageDir -Force | Out-Null
+New-Item -ItemType Directory -Path $bridgeStageDir -Force | Out-Null
 New-Item -ItemType Directory -Path $runtimeStageDir -Force | Out-Null
+
+Expand-Archive -LiteralPath $resolvedAskBridgeArchive -DestinationPath $bridgeStageDir
+$stagedAskBridge = Join-Path $bridgeStageDir "ask-bridge.exe"
+$stagedAskBridgeUpdater = Join-Path $bridgeStageDir "ask-bridge-update.exe"
+foreach ($requiredBridgeFile in @($stagedAskBridge, $stagedAskBridgeUpdater)) {
+    if (-not (Test-Path -LiteralPath $requiredBridgeFile -PathType Leaf)) {
+        throw "Pinned ask-bridge archive is missing required file: $requiredBridgeFile"
+    }
+}
 
 Copy-Item -LiteralPath (Join-Path $repoRoot "dist") -Destination (Join-Path $appStageDir "dist") -Recurse
 Copy-Item -LiteralPath (Join-Path $repoRoot "package.json") -Destination $appStageDir
@@ -214,13 +266,28 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Copy-Item -LiteralPath $resolvedNodeExe -Destination (Join-Path $runtimeStageDir "node.exe")
+Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\npx.cmd") -Destination $runtimeStageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\ask-bridge-mcp.cmd") -Destination $stageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\vscode-mcp.json") -Destination $stageDir
+Copy-Item -LiteralPath $componentsPath -Destination $stageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "README.md") -Destination $stageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "examples") -Destination (Join-Path $stageDir "examples") -Recurse
 
 $stagedNode = Join-Path $runtimeStageDir "node.exe"
 $stagedEntry = Join-Path $appStageDir "dist\index.js"
+$stagedChromeDevtoolsPackage = Get-Content -LiteralPath (Join-Path $appStageDir "node_modules\chrome-devtools-mcp\package.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+if ([string]$stagedChromeDevtoolsPackage.version -cne $chromeDevtoolsMcpVersion) {
+    throw "Staged chrome-devtools-mcp version mismatch: $($stagedChromeDevtoolsPackage.version)"
+}
+$stagedAskBridgeVersion = (& $stagedAskBridge --version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $stagedAskBridgeVersion -notmatch "(?<![0-9])$([Regex]::Escape($askBridgeVersion))(?![0-9])") {
+    throw "Staged ask-bridge version check failed: $stagedAskBridgeVersion"
+}
+$stagedNpx = Join-Path $runtimeStageDir "npx.cmd"
+& $stagedNpx --yes "chrome-devtools-mcp@$chromeDevtoolsMcpVersion" --version
+if ($LASTEXITCODE -ne 0) {
+    throw "The bundled chrome-devtools-mcp launcher failed with exit code $LASTEXITCODE."
+}
 & $stagedNode -e "const { pathToFileURL } = require('node:url'); import(pathToFileURL(process.argv[1]).href).then(() => setTimeout(() => process.exit(0), 100))" $stagedEntry
 if ($LASTEXITCODE -ne 0) {
     throw "The staged MCP server could not start with the bundled Node.js runtime."
