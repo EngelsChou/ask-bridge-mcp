@@ -6,7 +6,7 @@ import { askM365Copilot } from "./ask-bridge.js";
 import { MAX_ATTACHMENTS } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.2" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.3" });
 
 const inlineImageSchema = z.object({
   data: z
