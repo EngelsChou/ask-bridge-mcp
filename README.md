@@ -6,11 +6,11 @@
 
 執行前請確認已經準備好：
 
-- 已安裝 `ask-bridge 0.3.9` 或更新版本，且可從系統 `PATH` 執行
+- 已安裝 `ask-bridge 0.3.10` 或更新版本，且可從系統 `PATH` 執行
 - Google Chrome
 - 可使用 Microsoft 365 Copilot 的帳號
 
-MCP Server 會在第一個請求先執行 `ask-bridge --version`，低於 `0.3.9` 會停止並提示升級；`0.3.9` 修正 M365 富文字輸入框額外 DOM 空白行造成多行問題停在文字框的誤判。升級後必須完整關閉再開啟 VS Code，讓 MCP Server 重新載入執行檔。
+MCP Server 會在第一個請求先執行 `ask-bridge --version`，低於 `0.3.10` 會停止並提示升級；`0.3.10` 使用由 `EngelsChou` 維護的完整 dependency chain，並包含 M365 多行輸入與模型切換修正。升級後必須完整關閉再開啟 VS Code，讓 MCP Server 重新載入執行檔。
 
 先確認獨立安裝的 `ask-bridge` 可以使用：
 
@@ -210,7 +210,7 @@ release\install.exe.sha256
 release\uninstall.exe.sha256
 ```
 
-推送與 `package.json` 版本相同的 tag（例如 `v0.2.2`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
+推送與 `package.json` 版本相同的 tag（例如 `v0.2.3`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 
