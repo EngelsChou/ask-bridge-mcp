@@ -44,6 +44,7 @@ try {
   const tool = tools.find((candidate) => candidate.name === "ask_m365_copilot");
   for (const property of [
     "prompt",
+    "model",
     "imagePaths",
     "filePaths",
     "inlineImages",
