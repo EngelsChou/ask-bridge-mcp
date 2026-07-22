@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import path from "node:path";
 import {
   prepareAttachments,
   type AttachmentDependencies,
@@ -126,6 +127,18 @@ const PROCESS_CLOSE_GRACE_MS = 1_000;
 
 function executable(): string {
   return process.env.ASK_BRIDGE_PATH?.trim() || "ask-bridge";
+}
+
+function askBridgeEnvironment(requestId: string): NodeJS.ProcessEnv {
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    ASK_BRIDGE_REQUEST_ID: requestId,
+  };
+  const pathKey = Object.keys(environment).find((key) => key.toLowerCase() === "path") ?? "PATH";
+  environment[pathKey] = [path.dirname(process.execPath), environment[pathKey]]
+    .filter((value): value is string => Boolean(value))
+    .join(path.delimiter);
+  return environment;
 }
 
 export function buildCopilotQueryInvocation(options: AskOptions): AskBridgeInvocation {
@@ -351,7 +364,7 @@ async function runAskBridge(
       windowsHide: invocation.windowsHide,
       shell: false,
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, ASK_BRIDGE_REQUEST_ID: requestId },
+      env: askBridgeEnvironment(requestId),
     });
 
     let stdout = "";
