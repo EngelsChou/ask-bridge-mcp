@@ -15,6 +15,7 @@ When delegating, provide the subagent with:
 - only absolute source/document paths the user explicitly listed, or the resolved current-file path when the user explicitly instructed you to send the current file;
 - only saved screenshot paths the user explicitly listed, or an instruction to set `includeClipboardImage=true` when the user explicitly asks to send the current Windows clipboard image;
 - constraints, failed attempts, and the questions M365 should answer.
+- the exact M365 mode or model name only when the user explicitly requested one; the VS Code Chat model picker is separate from this downstream choice.
 
 Do not choose "relevant" attachment paths yourself. The M365 `prompt` leaves the local machine; do not paste or summarize local file contents or secrets into it unless the user explicitly requested sending that exact content. The Server cannot mechanically detect secrets in prompt text. If any approved path, inline image, or clipboard image is sent, instruct the Advisor to set `attachmentConsent=true`; do not treat that flag as broader permission.
 

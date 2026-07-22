@@ -16,5 +16,6 @@ Before calling the tool:
 4. A picture attached to VS Code Chat is not automatically available to the MCP tool. Set `includeClipboardImage=true` only when the user explicitly asks to send the current Windows clipboard screenshot to M365, and do so before any action that could replace the clipboard.
 5. Whenever any path, inline image, or clipboard image is included, set `attachmentConsent=true`. This flag records the user's explicit request; it is not permission for you to choose additional attachments.
 6. Do not claim that an image or file was transmitted unless it was explicitly included in the tool arguments and the tool succeeded.
+7. The VS Code Chat model picker does not select the downstream M365 model. When the user explicitly requests an M365 mode or model, pass its visible name through `model`; otherwise omit it and let M365 use its current/default mode.
 
 Return M365's advice clearly labeled as external advisory input. Identify assumptions and recommendations that still need verification against the local codebase. Do not claim that M365 edited local files.
