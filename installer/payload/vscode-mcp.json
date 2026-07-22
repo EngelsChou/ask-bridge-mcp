@@ -5,6 +5,7 @@
       "command": "${env:LOCALAPPDATA}\\Programs\\ask-bridge-mcp\\runtime\\node.exe",
       "args": ["${env:LOCALAPPDATA}\\Programs\\ask-bridge-mcp\\app\\dist\\index.js"],
       "env": {
+        "ASK_BRIDGE_PATH": "${env:LOCALAPPDATA}\\Programs\\ask-bridge-mcp\\bridge\\ask-bridge.exe",
         "ASK_BRIDGE_ALLOWED_ROOTS": "${workspaceFolder}"
       }
     }
