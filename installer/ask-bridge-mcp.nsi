@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.2.3"
+  !define APP_VERSION "0.2.4"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.2.3.0"
+  !define FILE_VERSION "0.2.4.0"
 !endif
 !ifndef STAGE_DIR
   !error "STAGE_DIR is required"
@@ -52,25 +52,12 @@ VIAddVersionKey /LANG=1028 "LegalCopyright" "Copyright (c) ${PRODUCT_PUBLISHER}"
 
 !insertmacro MUI_LANGUAGE "TradChinese"
 
-Function .onInit
-  SearchPath $0 "ask-bridge.exe"
-  StrCmp $0 "" ask_bridge_missing ask_bridge_found
-
-  ask_bridge_missing:
-    MessageBox MB_ICONEXCLAMATION|MB_YESNO \
-      "找不到 ask-bridge.exe。$\r$\n$\r$\n請先獨立安裝並測試 ask-bridge；本安裝程式不會替你安裝它。$\r$\n$\r$\n是否仍要繼續安裝 ask-bridge-mcp？" \
-      /SD IDYES IDYES ask_bridge_continue
-    Abort
-
-  ask_bridge_continue:
-  ask_bridge_found:
-FunctionEnd
-
 Section "安裝 ask-bridge-mcp" SEC_MAIN
   SetShellVarContext current
 
-  ; Upgrade cleanly without touching the separately installed ask-bridge.
+  ; Upgrade the complete managed payload while preserving the external login profile.
   RMDir /r "$INSTDIR\app"
+  RMDir /r "$INSTDIR\bridge"
   RMDir /r "$INSTDIR\runtime"
   RMDir /r "$INSTDIR\examples"
   Delete "$INSTDIR\ask-bridge-mcp.cmd"
@@ -89,7 +76,7 @@ Section "安裝 ask-bridge-mcp" SEC_MAIN
   WriteRegStr HKCU "${PRODUCT_REG_KEY}" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr HKCU "${PRODUCT_REG_KEY}" "DisplayVersion" "${APP_VERSION}"
   WriteRegStr HKCU "${PRODUCT_REG_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
-  WriteRegStr HKCU "${PRODUCT_REG_KEY}" "DisplayIcon" "$INSTDIR\runtime\node.exe"
+  WriteRegStr HKCU "${PRODUCT_REG_KEY}" "DisplayIcon" "$INSTDIR\bridge\ask-bridge.exe"
   WriteRegStr HKCU "${PRODUCT_REG_KEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${PRODUCT_REG_KEY}" "UninstallString" '$\"$INSTDIR\uninstall.exe$\"'
   WriteRegStr HKCU "${PRODUCT_REG_KEY}" "QuietUninstallString" '$\"$INSTDIR\uninstall.exe$\" /S'
@@ -104,6 +91,7 @@ Section "Uninstall"
   DeleteRegKey HKCU "${PRODUCT_REG_KEY}"
 
   RMDir /r "$INSTDIR\app"
+  RMDir /r "$INSTDIR\bridge"
   RMDir /r "$INSTDIR\runtime"
   RMDir /r "$INSTDIR\examples"
   Delete "$INSTDIR\ask-bridge-mcp.cmd"

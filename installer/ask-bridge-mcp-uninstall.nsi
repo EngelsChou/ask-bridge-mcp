@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.2.3"
+  !define APP_VERSION "0.2.4"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.2.3.0"
+  !define FILE_VERSION "0.2.4.0"
 !endif
 !ifndef OUTPUT_FILE
   !define OUTPUT_FILE "uninstall.exe"
@@ -97,6 +97,7 @@ Section "Uninstall"
   DeleteRegKey HKCU "${PRODUCT_REG_KEY}"
 
   RMDir /r "${INSTALL_DIR}\app"
+  RMDir /r "${INSTALL_DIR}\bridge"
   RMDir /r "${INSTALL_DIR}\runtime"
   RMDir /r "${INSTALL_DIR}\examples"
   Delete "${INSTALL_DIR}\ask-bridge-mcp.cmd"
