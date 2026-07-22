@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.2.1"
+  !define APP_VERSION "0.2.2"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.2.1.0"
+  !define FILE_VERSION "0.2.2.0"
 !endif
 !ifndef STAGE_DIR
   !error "STAGE_DIR is required"
