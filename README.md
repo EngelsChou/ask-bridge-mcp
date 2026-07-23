@@ -9,7 +9,7 @@
 - Google Chrome
 - 可使用 Microsoft 365 Copilot 的帳號
 
-完整版 `install.exe` 已內含 `ask-bridge 0.3.11`、Node.js、`chrome-devtools-mcp 1.5.0` 與 MCP Server，不需要另外安裝 `ask-bridge`、Node.js、npm 或 npx。封裝來源與 SHA-256 固定在 `installer/components.json`，建置時若二進位不符會直接失敗。
+完整版 `install.exe` 已內含 `ask-bridge 0.3.12`、Node.js、`chrome-devtools-mcp 1.5.0` 與 MCP Server，不需要另外安裝 `ask-bridge`、Node.js、npm 或 npx。封裝來源與 SHA-256 固定在 `installer/components.json`，建置時若二進位不符會直接失敗。
 
 安裝後如需核對內附版本，可執行：
 
@@ -115,6 +115,29 @@ Microsoft 公開且相對穩定的模式名稱為 `Auto`、`Quick response`、`T
 ```
 
 `GPT 5.6 Think deeper` 只有在登入的公司租戶已顯示該選項時才能使用；若尚未提供，工具會在送出 prompt 前回報找不到模型。原本的 `#ask_m365_copilot` 仍保留，可透過 Input JSON 的 `model` 動態選擇其他租戶可見模型。
+
+### 從 M365 網頁手動分析後回傳 VS Code
+
+使用 `#ask_m365_copilot_listener` 可把 M365 Chat 當成互動式分析工作區：
+
+1. VS Code 會啟動 listener tool call，並開啟 ask-bridge 管理的可見 Chrome。
+2. 你可直接在 M365 Chat 上傳檔案、截圖、OneDrive 或其他工作內容並提問。
+3. M365 composer 旁會顯示 `Return VS Code`；回覆仍在生成時按鈕保持停用。
+4. 分析完成後按下按鈕，最後一則 M365 回覆會成為 MCP tool result。
+5. VS Code Copilot Chat 的 Agent 收到結果後，會繼續執行原本的工作。
+
+```text
+#ask_m365_copilot_listener 等我在 M365 完成互動分析並按下 Return VS Code 後，根據回傳結果繼續修改程式。
+```
+
+Listener input 只有：
+
+- `newConversation`：預設 `false`，保留目前 M365 對話；設為 `true` 才開新對話。
+- `timeoutSeconds`：預設 1800 秒，可設定 30–7200 秒。
+
+此工具沒有 `prompt`、`model`、`imagePaths` 或 `filePaths` 欄位。檔案與工作資料由你直接在 M365 頁面選擇並傳給 Microsoft，不經 VS Code Agent 自動挑選；只有按下按鈕時的最後一則文字回覆會送回 VS Code。M365 官方的手動加入內容流程可參考[在 Copilot Chat 提示中新增內容](https://support.microsoft.com/en-us/microsoft-365-copilot/add-content-to-microsoft-365-copilot-chat-prompts)。
+
+等待期間不要取消該 tool call。若手動取消或等待逾時，頁面按鈕會在 heartbeat 停止後自動移除；重新呼叫 listener 即可再次啟動。
 
 ### 程式碼、檔案與截圖
 
@@ -237,7 +260,7 @@ release\install.exe.sha256
 release\uninstall.exe.sha256
 ```
 
-推送與 `package.json` 版本相同的 tag（例如 `v0.2.7`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
+推送與 `package.json` 版本相同的 tag（例如 `v0.2.8`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 

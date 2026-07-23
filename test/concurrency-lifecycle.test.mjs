@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { askM365CopilotWithRunner } from "../dist/ask-bridge.js";
+import {
+  askM365CopilotWithRunner,
+  listenM365CopilotWithRunner,
+} from "../dist/ask-bridge.js";
 
 const baseOptions = {
   prompt: "request",
@@ -27,7 +30,7 @@ async function waitFor(predicate, message) {
 }
 
 function supportedVersion() {
-  return { stdout: "ask-bridge 0.3.11\n", stderr: "" };
+  return { stdout: "ask-bridge 0.3.12\n", stderr: "" };
 }
 
 test("runs concurrent tool calls one at a time in FIFO order", async (t) => {
@@ -76,6 +79,44 @@ test("runs concurrent tool calls one at a time in FIFO order", async (t) => {
     "end:B",
     "start:C",
     "end:C",
+  ]);
+});
+
+test("listener holds the same Chrome lock until Return VS Code completes", async (t) => {
+  const listenerGate = deferred();
+  t.after(() => listenerGate.resolve());
+  const events = [];
+  const runner = async (invocation) => {
+    if (invocation.kind === "version") return supportedVersion();
+    events.push(`start:${invocation.kind}`);
+    if (invocation.kind === "listener") await listenerGate.promise;
+    events.push(`end:${invocation.kind}`);
+    return {
+      stdout: invocation.kind === "listener" ? "interactive result\n" : "query result\n",
+      stderr: "",
+    };
+  };
+
+  const listener = listenM365CopilotWithRunner(
+    { timeoutSeconds: 1800, newConversation: false },
+    runner,
+  );
+  await waitFor(
+    () => events.includes("start:listener"),
+    "listener did not acquire the Chrome lock",
+  );
+  const query = askM365CopilotWithRunner(baseOptions, runner);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(events, ["start:listener"]);
+
+  listenerGate.resolve();
+  assert.equal(await listener, "interactive result");
+  assert.equal(await query, "query result");
+  assert.deepEqual(events, [
+    "start:listener",
+    "end:listener",
+    "start:query",
+    "end:query",
   ]);
 });
 
@@ -261,7 +302,7 @@ test("cleanup failures never replace a successful answer or the original query e
   );
 });
 
-test("rejects ask-bridge older than 0.3.11 before querying with upgrade guidance", async () => {
+test("rejects ask-bridge older than 0.3.12 before querying with upgrade guidance", async () => {
   const kinds = [];
   const runner = async (invocation) => {
     kinds.push(invocation.kind);
@@ -274,7 +315,7 @@ test("rejects ask-bridge older than 0.3.11 before querying with upgrade guidance
   await assert.rejects(
     askM365CopilotWithRunner(baseOptions, runner),
     (error) =>
-      /requires ask-bridge 0\.3\.11 or later/i.test(error.message) &&
+      /requires ask-bridge 0\.3\.12 or later/i.test(error.message) &&
       /upgrade ask-bridge/i.test(error.message) &&
       /restart VS Code/i.test(error.message),
   );
@@ -287,7 +328,7 @@ test("caches a successful version check for repeated calls using the same runner
   const runner = async (invocation) => {
     if (invocation.kind === "version") {
       versionChecks += 1;
-      return { stdout: "ask-bridge v0.3.11\n", stderr: "" };
+      return { stdout: "ask-bridge v0.3.12\n", stderr: "" };
     }
     queries += 1;
     return { stdout: `answer ${queries}\n`, stderr: "" };

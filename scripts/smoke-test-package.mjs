@@ -58,18 +58,18 @@ assert.equal(
 
 const components = JSON.parse(await readFile(componentsManifest, "utf8"));
 const chromeDevtoolsPackage = JSON.parse(await readFile(chromeDevtoolsMcpPackage, "utf8"));
-assert.equal(components.askBridge.version, "0.3.11");
+assert.equal(components.askBridge.version, "0.3.12");
 assert.equal(components.chromeDevtoolsMcp.version, "1.5.0");
 assert.equal(chromeDevtoolsPackage.version, components.chromeDevtoolsMcp.version);
 const { stdout: askBridgeVersionOutput } = await execFileAsync(askBridgeExe, ["--version"], {
   windowsHide: true,
 });
-assert.match(askBridgeVersionOutput, /\b0\.3\.11\b/);
+assert.match(askBridgeVersionOutput, /\b0\.3\.12\b/);
 for (const command of [askBridgeCommand, askCommand]) {
   const { stdout } = await execAsync(`"${command.replaceAll('"', '""')}" --version`, {
     windowsHide: true,
   });
-  assert.match(stdout, /\b0\.3\.11\b/);
+  assert.match(stdout, /\b0\.3\.12\b/);
 }
 
 const packagedModule = await import(pathToFileURL(path.join(stageDir, "app", "dist", "ask-bridge.js")));
@@ -129,6 +129,30 @@ try {
       `Packaged fixed-model tool ${preset.toolName} must describe ${preset.model}`,
     );
   }
+  const listener = tools.find(
+    (candidate) => candidate.name === "ask_m365_copilot_listener",
+  );
+  assert.ok(listener, "Packaged MCP server did not expose ask_m365_copilot_listener");
+  assert.ok(
+    listener.inputSchema?.properties?.newConversation,
+    "Packaged listener schema is missing newConversation",
+  );
+  assert.ok(
+    listener.inputSchema?.properties?.timeoutSeconds,
+    "Packaged listener schema is missing timeoutSeconds",
+  );
+  for (const forbidden of ["prompt", "model", "imagePaths", "filePaths"]) {
+    assert.equal(
+      listener.inputSchema?.properties?.[forbidden],
+      undefined,
+      `Packaged listener must not expose ${forbidden}`,
+    );
+  }
+  assert.match(
+    listener.description ?? "",
+    /Return VS Code/i,
+    "Packaged listener must describe its interactive handoff button",
+  );
   console.log("Packaged MCP server smoke test passed.");
 } finally {
   await client.close();

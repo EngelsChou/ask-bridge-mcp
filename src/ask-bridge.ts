@@ -23,8 +23,15 @@ export interface AskOptions extends AttachmentInputs {
   signal?: AbortSignal;
 }
 
+export interface ListenOptions {
+  timeoutSeconds: number;
+  newConversation: boolean;
+  requestId?: string;
+  signal?: AbortSignal;
+}
+
 export interface AskBridgeInvocation {
-  kind: "version" | "query" | "close" | "login";
+  kind: "version" | "query" | "listener" | "close" | "login";
   args: string[];
   stdin: string;
   windowsHide: boolean;
@@ -53,6 +60,11 @@ export interface AskBridgeExecutionDependencies {
   /** Receives cleanup failures without changing the tool call's result. */
   onCleanupError?: (failure: AttachmentCleanupFailure) => void | Promise<void>;
   cleanupRetryDelayMs?: number;
+  /** Test/lifecycle injection; production writes structured stderr and JSONL diagnostics. */
+  onDiagnostic?: DiagnosticReporter;
+}
+
+export interface ListenerExecutionDependencies {
   /** Test/lifecycle injection; production writes structured stderr and JSONL diagnostics. */
   onDiagnostic?: DiagnosticReporter;
 }
@@ -121,7 +133,7 @@ class FifoAsyncMutex {
 
 const copilotRequestMutex = new FifoAsyncMutex();
 const verifiedAskBridgeVersions = new WeakMap<AskBridgeRunner, Map<string, string>>();
-const MINIMUM_ASK_BRIDGE_VERSION = [0, 3, 11] as const;
+const MINIMUM_ASK_BRIDGE_VERSION = [0, 3, 12] as const;
 const CLEANUP_ATTEMPTS = 3;
 const DEFAULT_CLEANUP_RETRY_DELAY_MS = 50;
 const PROCESS_CLOSE_GRACE_MS = 1_000;
@@ -174,6 +186,22 @@ export function buildCopilotQueryInvocation(options: AskOptions): AskBridgeInvoc
     // the prompt through stdin and close the pipe explicitly.
     stdin: options.prompt,
     windowsHide: true,
+    requestId: options.requestId,
+  };
+}
+
+export function buildCopilotListenerInvocation(options: ListenOptions): AskBridgeInvocation {
+  const args = ["--provider", "copilot", "--timeout", String(options.timeoutSeconds)];
+  if (options.newConversation) args.push("--new");
+  args.push("listen");
+
+  return {
+    kind: "listener",
+    args,
+    stdin: "",
+    // The listener is intentionally interactive: the user uploads content and
+    // clicks Return VS Code in the visible managed Chrome window.
+    windowsHide: false,
     requestId: options.requestId,
   };
 }
@@ -254,7 +282,7 @@ function isSupportedVersion(version: ParsedVersion): boolean {
 }
 
 function versionUpgradeGuidance(detail: string): string {
-  return `${detail} Upgrade ask-bridge by reinstalling the latest complete ask-bridge-mcp package (or set ASK_BRIDGE_PATH to ask-bridge 0.3.11 or later), then fully restart VS Code.`;
+  return `${detail} Upgrade ask-bridge by reinstalling the latest complete ask-bridge-mcp package (or set ASK_BRIDGE_PATH to ask-bridge 0.3.12 or later), then fully restart VS Code.`;
 }
 
 async function ensureSupportedAskBridgeVersion(
@@ -291,7 +319,7 @@ async function ensureSupportedAskBridgeVersion(
   if (!isSupportedVersion(version)) {
     throw new Error(
       versionUpgradeGuidance(
-        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.11 or later.`,
+        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.12 or later.`,
       ),
     );
   }
@@ -634,6 +662,73 @@ export async function askM365CopilotWithRunner(
   }
 }
 
+export async function listenM365CopilotWithRunner(
+  options: ListenOptions,
+  runner: AskBridgeRunner,
+  dependencies: ListenerExecutionDependencies = {},
+): Promise<string> {
+  const requestId = options.requestId ?? createRequestId();
+  const startedAt = Date.now();
+  const diagnostic =
+    dependencies.onDiagnostic ??
+    ((event: string, details: Record<string, unknown>) =>
+      emitDiagnostic(requestId, event, details));
+  const report = (event: string, details: Record<string, unknown>) => {
+    try {
+      diagnostic(event, details);
+    } catch {
+      // Diagnostics are deliberately best-effort.
+    }
+  };
+  let stage = "queue";
+  let release: ReleaseLock | undefined;
+
+  report("listener_queued", {
+    timeout_seconds: options.timeoutSeconds,
+    new_conversation: options.newConversation,
+  });
+
+  try {
+    release = await copilotRequestMutex.acquire(options.signal);
+    report("listener_started", { queue_duration_ms: Date.now() - startedAt });
+
+    stage = "version_check";
+    const version = await ensureSupportedAskBridgeVersion(runner, requestId, options.signal);
+    report("version_verified", { ask_bridge_version: version });
+
+    stage = "listener";
+    const result = await runner(
+      buildCopilotListenerInvocation({ ...options, requestId }),
+      options.signal,
+    );
+    const answer = answerFrom(result);
+
+    stage = "completed";
+    report("listener_succeeded", {
+      duration_ms: Date.now() - startedAt,
+      response_character_count: Array.from(answer).length,
+    });
+    return answer;
+  } catch (error) {
+    report(options.signal?.aborted ? "listener_canceled" : "listener_failed", {
+      stage,
+      duration_ms: Date.now() - startedAt,
+      error_name: error instanceof Error ? error.name : "UnknownError",
+    });
+    throw error;
+  } finally {
+    release?.();
+    report("listener_finished", {
+      duration_ms: Date.now() - startedAt,
+      lock_released: release !== undefined,
+    });
+  }
+}
+
 export function askM365Copilot(options: AskOptions): Promise<string> {
   return askM365CopilotWithRunner(options, runAskBridge);
+}
+
+export function listenM365Copilot(options: ListenOptions): Promise<string> {
+  return listenM365CopilotWithRunner(options, runAskBridge);
 }

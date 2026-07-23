@@ -2,12 +2,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { askM365Copilot } from "./ask-bridge.js";
+import { askM365Copilot, listenM365Copilot } from "./ask-bridge.js";
 import { MAX_ATTACHMENTS, type InlineImageInput } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 import { M365_MODEL_PRESETS } from "./model-presets.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.7" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.8" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -139,6 +139,38 @@ async function executeAskTool(
   }
 }
 
+async function executeListenerTool(
+  args: { newConversation: boolean; timeoutSeconds: number },
+  signal: AbortSignal,
+) {
+  const requestId = createRequestId();
+  try {
+    const answer = await listenM365Copilot({ requestId, ...args, signal });
+    emitDiagnostic(requestId, "tool_result_returned", {
+      is_error: false,
+      response_character_count: Array.from(answer).length,
+      source: "m365_listener",
+    });
+    return { content: [{ type: "text" as const, text: answer }] };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    emitDiagnostic(requestId, "tool_result_returned", {
+      is_error: true,
+      error_name: error instanceof Error ? error.name : "UnknownError",
+      source: "m365_listener",
+    });
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text" as const,
+          text: `Microsoft 365 Copilot listener failed: ${message}`,
+        },
+      ],
+    };
+  }
+}
+
 server.registerTool(
   "ask_m365_copilot",
   {
@@ -162,6 +194,33 @@ for (const preset of M365_MODEL_PRESETS) {
     async (args, { signal }) => executeAskTool(args, signal, preset.model),
   );
 }
+
+server.registerTool(
+  "ask_m365_copilot_listener",
+  {
+    title: "Listen to M365 — Return VS Code",
+    description:
+      "Open the managed Microsoft 365 Copilot Chrome window and wait while the user works directly in M365 Chat. The user may manually upload files, screenshots, OneDrive content, or other work data in that page; those inputs go directly from the browser to Microsoft 365 and are not selected or transmitted by the VS Code agent. A self-cleaning 'Return VS Code' button appears beside the M365 composer and is enabled after a response is available and generation has stopped. When the user clicks it, this tool returns the latest M365 response text so the VS Code Copilot Chat agent can continue the current task. Keep this tool call running until the user clicks the button, cancels it, or timeoutSeconds expires.",
+    inputSchema: {
+      newConversation: z
+        .boolean()
+        .default(false)
+        .describe(
+          "Open a brand-new M365 Chat when true; default false preserves the currently open M365 conversation",
+        ),
+      timeoutSeconds: z
+        .number()
+        .int()
+        .min(30)
+        .max(7200)
+        .default(1800)
+        .describe(
+          "Maximum time to wait for the user to click Return VS Code, from 30 seconds to 2 hours",
+        ),
+    },
+  },
+  async (args, { signal }) => executeListenerTool(args, signal),
+);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

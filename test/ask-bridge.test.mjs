@@ -5,7 +5,9 @@ import path from "node:path";
 import test from "node:test";
 import {
   askM365CopilotWithRunner,
+  buildCopilotListenerInvocation,
   buildCopilotQueryInvocation,
+  listenM365CopilotWithRunner,
   resolveAskBridgeExecutable,
   requiresInteractiveLogin,
 } from "../dist/ask-bridge.js";
@@ -67,7 +69,7 @@ test("falls back to PATH for development and custom installations", () => {
 function withSupportedVersion(runner) {
   return (invocation, signal) =>
     invocation.kind === "version"
-      ? Promise.resolve({ stdout: "ask-bridge 0.3.11\n", stderr: "" })
+      ? Promise.resolve({ stdout: "ask-bridge 0.3.12\n", stderr: "" })
       : runner(invocation, signal);
 }
 
@@ -95,6 +97,54 @@ test("passes the current Microsoft 365 GPT submenu model separately from the VS 
     "--model",
     "GPT 5.5 快速回應",
   ]);
+});
+
+test("builds a visible listener command without a prompt or automated attachments", () => {
+  const invocation = buildCopilotListenerInvocation({
+    timeoutSeconds: 1800,
+    newConversation: false,
+  });
+
+  assert.deepEqual(invocation.args, [
+    "--provider",
+    "copilot",
+    "--timeout",
+    "1800",
+    "listen",
+  ]);
+  assert.equal(invocation.kind, "listener");
+  assert.equal(invocation.stdin, "");
+  assert.equal(invocation.windowsHide, false);
+
+  const fresh = buildCopilotListenerInvocation({
+    timeoutSeconds: 7200,
+    newConversation: true,
+  });
+  assert.deepEqual(fresh.args, [
+    "--provider",
+    "copilot",
+    "--timeout",
+    "7200",
+    "--new",
+    "listen",
+  ]);
+});
+
+test("returns the listener response only after ask-bridge completes", async () => {
+  const invocations = [];
+  const runner = withSupportedVersion(async (invocation) => {
+    invocations.push(invocation);
+    assert.equal(invocation.kind, "listener");
+    return { stdout: "M365 interactive analysis\n", stderr: "" };
+  });
+
+  const answer = await listenM365CopilotWithRunner(
+    { timeoutSeconds: 1800, newConversation: false },
+    runner,
+  );
+
+  assert.equal(answer, "M365 interactive analysis");
+  assert.deepEqual(invocations.map(({ kind }) => kind), ["listener"]);
 });
 
 test("recognizes ask-bridge logged-out diagnostics", () => {

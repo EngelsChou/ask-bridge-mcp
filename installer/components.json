@@ -1,10 +1,10 @@
 {
   "askBridge": {
-    "version": "0.3.11",
+    "version": "0.3.12",
     "branch": "main-add-m365-copilot",
-    "commit": "2d058536d826ab1785848f9a3bfe1cd4aba650c6",
-    "archiveUrl": "https://github.com/EngelsChou/ask-bridge/releases/download/v0.3.11/ask-bridge-x86_64-pc-windows-msvc.zip",
-    "archiveSha256": "ea7a1facfd6b76750195897406255992c151c36d7751cb104fd98d629bf8b308"
+    "commit": "d6c038058815c3e4ab4fbb08221273a1166dbc5d",
+    "archiveUrl": "https://github.com/EngelsChou/ask-bridge/releases/download/v0.3.12/ask-bridge-x86_64-pc-windows-msvc.zip",
+    "archiveSha256": "bdd5caa96fcb58ee8c319b9fe0a787223a3f6f0847f7ea44f9e5961ce0948650"
   },
   "chromeDevtoolsMcp": {
     "version": "1.5.0"

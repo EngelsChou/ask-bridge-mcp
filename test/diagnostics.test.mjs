@@ -32,7 +32,7 @@ test("request lifecycle logs reach the final MCP result boundary", async () => {
     },
     async (invocation) =>
       invocation.kind === "version"
-        ? { stdout: "ask-bridge 0.3.11\n", stderr: "" }
+        ? { stdout: "ask-bridge 0.3.12\n", stderr: "" }
         : { stdout: "完整回答\n", stderr: "" },
     {},
     { onDiagnostic: (event, details) => events.push({ event, details }) },
