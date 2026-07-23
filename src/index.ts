@@ -206,7 +206,7 @@ server.registerTool(
         .boolean()
         .default(false)
         .describe(
-          "Open a brand-new M365 Chat when true; default false preserves the currently open M365 conversation",
+          "Set to true ONLY if the user explicitly asked to start a brand-new chat. MUST be kept false (the default) when continuing an existing interaction or task so the open M365 conversation and uploaded files are preserved.",
         ),
       timeoutSeconds: z
         .number()
