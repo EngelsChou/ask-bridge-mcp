@@ -78,6 +78,9 @@ assert.equal(
   askBridgeExe,
   "Packaged MCP server must auto-discover its bundled ask-bridge executable",
 );
+const packagedPresets = await import(
+  pathToFileURL(path.join(stageDir, "app", "dist", "model-presets.js"))
+);
 
 const transport = new StdioClientTransport({
   command: nodeExe,
@@ -106,6 +109,24 @@ try {
     assert.ok(
       tool?.inputSchema?.properties?.[property],
       `Packaged ask_m365_copilot schema is missing ${property}`,
+    );
+  }
+  for (const preset of packagedPresets.M365_MODEL_PRESETS) {
+    const fixedTool = tools.find((candidate) => candidate.name === preset.toolName);
+    assert.ok(fixedTool, `Packaged MCP server did not expose ${preset.toolName}`);
+    assert.ok(
+      fixedTool.inputSchema?.properties?.prompt,
+      `Packaged fixed-model tool ${preset.toolName} is missing prompt`,
+    );
+    assert.equal(
+      fixedTool.inputSchema?.properties?.model,
+      undefined,
+      `Packaged fixed-model tool ${preset.toolName} must not allow model overrides`,
+    );
+    assert.match(
+      fixedTool.description ?? "",
+      new RegExp(preset.model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      `Packaged fixed-model tool ${preset.toolName} must describe ${preset.model}`,
     );
   }
   console.log("Packaged MCP server smoke test passed.");

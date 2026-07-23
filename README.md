@@ -99,6 +99,23 @@ VS Code Chat 頂端的模型選擇器只決定哪個模型負責規劃並呼叫 
 
 Microsoft 公開且相對穩定的模式名稱為 `Auto`、`Quick response`、`Think deeper`；也可填入 M365 的 GPT／More 子選單中當下可見的完整名稱，例如 `GPT 5.5 Think deeper`、`GPT 5.5 快速回應` 或 `Claude`。選項依租戶、授權、管理原則與 Microsoft 上線進度而異；找不到指定項目時，請求會在送出 prompt 前停止。
 
+若不希望依賴 VS Code Agent 正確填入 `model`，可直接選擇固定模型工具。固定工具的 Input 不接受 `model`，工具名稱會強制決定下游 M365 模型：
+
+| VS Code Chat 工具 | 固定的 M365 model |
+|---|---|
+| `#ask_m365_copilot_auto` | `Auto` |
+| `#ask_m365_copilot_gpt_5_5_think_deeper` | `GPT 5.5 Think deeper` |
+| `#ask_m365_copilot_gpt_5_5_quick_response` | `GPT 5.5 快速回應` |
+| `#ask_m365_copilot_gpt_5_6_think_deeper` | `GPT 5.6 Think deeper` |
+
+例如：
+
+```text
+#ask_m365_copilot_gpt_5_5_quick_response 請快速整理這份規格的重點。
+```
+
+`GPT 5.6 Think deeper` 只有在登入的公司租戶已顯示該選項時才能使用；若尚未提供，工具會在送出 prompt 前回報找不到模型。原本的 `#ask_m365_copilot` 仍保留，可透過 Input JSON 的 `model` 動態選擇其他租戶可見模型。
+
 ### 程式碼、檔案與截圖
 
 `ask_m365_copilot` 保留既有的 `prompt`、`newConversation`、`timeoutSeconds`，並提供下列可選欄位：
@@ -220,7 +237,7 @@ release\install.exe.sha256
 release\uninstall.exe.sha256
 ```
 
-推送與 `package.json` 版本相同的 tag（例如 `v0.2.6`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
+推送與 `package.json` 版本相同的 tag（例如 `v0.2.7`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 
