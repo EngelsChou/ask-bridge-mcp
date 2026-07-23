@@ -9,7 +9,7 @@
 - Google Chrome
 - 可使用 Microsoft 365 Copilot 的帳號
 
-完整版 `install.exe` 已內含 `ask-bridge 0.3.10`、Node.js、`chrome-devtools-mcp 1.5.0` 與 MCP Server，不需要另外安裝 `ask-bridge`、Node.js、npm 或 npx。封裝來源與 SHA-256 固定在 `installer/components.json`，建置時若二進位不符會直接失敗。
+完整版 `install.exe` 已內含 `ask-bridge 0.3.11`、Node.js、`chrome-devtools-mcp 1.5.0` 與 MCP Server，不需要另外安裝 `ask-bridge`、Node.js、npm 或 npx。封裝來源與 SHA-256 固定在 `installer/components.json`，建置時若二進位不符會直接失敗。
 
 安裝後如需核對內附版本，可執行：
 
@@ -92,12 +92,12 @@ VS Code Chat 頂端的模型選擇器只決定哪個模型負責規劃並呼叫 
 ```json
 {
   "prompt": "請仔細分析這個架構決策。",
-  "model": "Think deeper",
+  "model": "GPT 5.5 Think deeper",
   "newConversation": true
 }
 ```
 
-Microsoft 公開且相對穩定的模式名稱為 `Auto`、`Quick response`、`Think deeper`；也可填入 M365 的 `More` 選單中當下可見的具體模型，例如 `GPT-5.2` 或 `Claude`。選項依租戶、授權、管理原則與 Microsoft 上線進度而異；找不到指定項目時，請求會在送出 prompt 前停止。
+Microsoft 公開且相對穩定的模式名稱為 `Auto`、`Quick response`、`Think deeper`；也可填入 M365 的 GPT／More 子選單中當下可見的完整名稱，例如 `GPT 5.5 Think deeper`、`GPT 5.5 快速回應` 或 `Claude`。選項依租戶、授權、管理原則與 Microsoft 上線進度而異；找不到指定項目時，請求會在送出 prompt 前停止。
 
 ### 程式碼、檔案與截圖
 
@@ -220,7 +220,7 @@ release\install.exe.sha256
 release\uninstall.exe.sha256
 ```
 
-推送與 `package.json` 版本相同的 tag（例如 `v0.2.5`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
+推送與 `package.json` 版本相同的 tag（例如 `v0.2.6`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 

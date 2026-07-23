@@ -6,7 +6,7 @@ import { askM365Copilot } from "./ask-bridge.js";
 import { MAX_ATTACHMENTS } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.5" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.6" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -47,7 +47,7 @@ server.registerTool(
         .max(100)
         .optional()
         .describe(
-          "Optional Microsoft 365 Copilot mode or visible model name, such as Auto, Quick response, Think deeper, GPT-5.2, or Claude; availability depends on the signed-in tenant and differs from the VS Code Chat model picker",
+          "Optional Microsoft 365 Copilot mode or visible model name, such as Auto, Quick response, Think deeper, GPT 5.5 Think deeper, GPT 5.5 快速回應, or Claude; availability depends on the signed-in tenant and differs from the VS Code Chat model picker",
         ),
       imagePaths: z
         .array(z.string().min(1))

@@ -67,7 +67,7 @@ test("falls back to PATH for development and custom installations", () => {
 function withSupportedVersion(runner) {
   return (invocation, signal) =>
     invocation.kind === "version"
-      ? Promise.resolve({ stdout: "ask-bridge 0.3.10\n", stderr: "" })
+      ? Promise.resolve({ stdout: "ask-bridge 0.3.11\n", stderr: "" })
       : runner(invocation, signal);
 }
 
@@ -80,10 +80,10 @@ test("streams large prompts through stdin instead of the Windows command line", 
   assert.deepEqual(invocation.args, ["--provider", "copilot", "--timeout", "300", "--new"]);
 });
 
-test("passes the requested Microsoft 365 mode separately from the VS Code host model", () => {
+test("passes the current Microsoft 365 GPT submenu model separately from the VS Code host model", () => {
   const invocation = buildCopilotQueryInvocation({
     ...options,
-    model: "  Think deeper  ",
+    model: "  GPT 5.5 快速回應  ",
   });
 
   assert.deepEqual(invocation.args, [
@@ -93,7 +93,7 @@ test("passes the requested Microsoft 365 mode separately from the VS Code host m
     "300",
     "--new",
     "--model",
-    "Think deeper",
+    "GPT 5.5 快速回應",
   ]);
 });
 

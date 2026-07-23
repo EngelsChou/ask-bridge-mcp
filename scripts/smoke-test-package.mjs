@@ -58,18 +58,18 @@ assert.equal(
 
 const components = JSON.parse(await readFile(componentsManifest, "utf8"));
 const chromeDevtoolsPackage = JSON.parse(await readFile(chromeDevtoolsMcpPackage, "utf8"));
-assert.equal(components.askBridge.version, "0.3.10");
+assert.equal(components.askBridge.version, "0.3.11");
 assert.equal(components.chromeDevtoolsMcp.version, "1.5.0");
 assert.equal(chromeDevtoolsPackage.version, components.chromeDevtoolsMcp.version);
 const { stdout: askBridgeVersionOutput } = await execFileAsync(askBridgeExe, ["--version"], {
   windowsHide: true,
 });
-assert.match(askBridgeVersionOutput, /\b0\.3\.10\b/);
+assert.match(askBridgeVersionOutput, /\b0\.3\.11\b/);
 for (const command of [askBridgeCommand, askCommand]) {
   const { stdout } = await execAsync(`"${command.replaceAll('"', '""')}" --version`, {
     windowsHide: true,
   });
-  assert.match(stdout, /\b0\.3\.10\b/);
+  assert.match(stdout, /\b0\.3\.11\b/);
 }
 
 const packagedModule = await import(pathToFileURL(path.join(stageDir, "app", "dist", "ask-bridge.js")));

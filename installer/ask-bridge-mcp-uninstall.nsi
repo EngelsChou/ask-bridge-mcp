@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.2.5"
+  !define APP_VERSION "0.2.6"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.2.5.0"
+  !define FILE_VERSION "0.2.6.0"
 !endif
 !ifndef OUTPUT_FILE
   !define OUTPUT_FILE "uninstall.exe"
