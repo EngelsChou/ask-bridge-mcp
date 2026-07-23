@@ -296,9 +296,11 @@ foreach ($terminalCommand in @($stagedAskBridgeCommand, $stagedAskCommand)) {
     }
 }
 $stagedNpx = Join-Path $runtimeStageDir "npx.cmd"
-& $stagedNpx --yes "chrome-devtools-mcp@$chromeDevtoolsMcpVersion" --version
-if ($LASTEXITCODE -ne 0) {
-    throw "The bundled chrome-devtools-mcp launcher failed with exit code $LASTEXITCODE."
+foreach ($yesFlag in @("--yes", "-y")) {
+    & $stagedNpx $yesFlag "chrome-devtools-mcp@$chromeDevtoolsMcpVersion" --version
+    if ($LASTEXITCODE -ne 0) {
+        throw "The bundled chrome-devtools-mcp launcher failed for $yesFlag with exit code $LASTEXITCODE."
+    }
 }
 & $stagedNode -e "const { pathToFileURL } = require('node:url'); import(pathToFileURL(process.argv[1]).href).then(() => setTimeout(() => process.exit(0), 100))" $stagedEntry
 if ($LASTEXITCODE -ne 0) {
