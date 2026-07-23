@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import {
   prepareAttachments,
@@ -125,8 +126,25 @@ const CLEANUP_ATTEMPTS = 3;
 const DEFAULT_CLEANUP_RETRY_DELAY_MS = 50;
 const PROCESS_CLOSE_GRACE_MS = 1_000;
 
+export function resolveAskBridgeExecutable(
+  environment: NodeJS.ProcessEnv = process.env,
+  nodeExecutable: string = process.execPath,
+  fileExists: (value: string) => boolean = existsSync,
+): string {
+  const configured = environment.ASK_BRIDGE_PATH?.trim();
+  if (configured) return configured;
+
+  // The complete Windows installer places Node in runtime\ and ask-bridge in
+  // the sibling bridge\ directory. This keeps existing VS Code MCP settings
+  // working even when they predate ASK_BRIDGE_PATH or inherit a stale PATH.
+  const bundled = path.resolve(path.dirname(nodeExecutable), "..", "bridge", "ask-bridge.exe");
+  if (fileExists(bundled)) return bundled;
+
+  return "ask-bridge";
+}
+
 function executable(): string {
-  return process.env.ASK_BRIDGE_PATH?.trim() || "ask-bridge";
+  return resolveAskBridgeExecutable();
 }
 
 function askBridgeEnvironment(requestId: string): NodeJS.ProcessEnv {
@@ -236,7 +254,7 @@ function isSupportedVersion(version: ParsedVersion): boolean {
 }
 
 function versionUpgradeGuidance(detail: string): string {
-  return `${detail} Upgrade ask-bridge to version 0.3.10 or later, then fully restart VS Code so the MCP server reloads the installed executable.`;
+  return `${detail} Upgrade ask-bridge by reinstalling the latest complete ask-bridge-mcp package (or set ASK_BRIDGE_PATH to ask-bridge 0.3.10 or later), then fully restart VS Code.`;
 }
 
 async function ensureSupportedAskBridgeVersion(

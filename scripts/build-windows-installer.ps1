@@ -22,6 +22,7 @@ $stageDir = [IO.Path]::GetFullPath((Join-Path $releaseDir "stage"))
 $appStageDir = Join-Path $stageDir "app"
 $bridgeStageDir = Join-Path $stageDir "bridge"
 $runtimeStageDir = Join-Path $stageDir "runtime"
+$binStageDir = Join-Path $stageDir "bin"
 $installerPath = Join-Path $releaseDir "install.exe"
 $uninstallerPath = Join-Path $releaseDir "uninstall.exe"
 $installerHashPath = "$installerPath.sha256"
@@ -233,6 +234,7 @@ if (Test-Path -LiteralPath $stageDir) {
 New-Item -ItemType Directory -Path $appStageDir -Force | Out-Null
 New-Item -ItemType Directory -Path $bridgeStageDir -Force | Out-Null
 New-Item -ItemType Directory -Path $runtimeStageDir -Force | Out-Null
+New-Item -ItemType Directory -Path $binStageDir -Force | Out-Null
 
 Expand-Archive -LiteralPath $resolvedAskBridgeArchive -DestinationPath $bridgeStageDir
 $stagedAskBridge = Join-Path $bridgeStageDir "ask-bridge.exe"
@@ -267,6 +269,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Copy-Item -LiteralPath $resolvedNodeExe -Destination (Join-Path $runtimeStageDir "node.exe")
 Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\npx.cmd") -Destination $runtimeStageDir
+Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\ask-bridge.cmd") -Destination $binStageDir
+Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\ask.cmd") -Destination $binStageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\ask-bridge-mcp.cmd") -Destination $stageDir
 Copy-Item -LiteralPath (Join-Path $repoRoot "installer\payload\vscode-mcp.json") -Destination $stageDir
 Copy-Item -LiteralPath $componentsPath -Destination $stageDir
@@ -282,6 +286,14 @@ if ([string]$stagedChromeDevtoolsPackage.version -cne $chromeDevtoolsMcpVersion)
 $stagedAskBridgeVersion = (& $stagedAskBridge --version | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $stagedAskBridgeVersion -notmatch "(?<![0-9])$([Regex]::Escape($askBridgeVersion))(?![0-9])") {
     throw "Staged ask-bridge version check failed: $stagedAskBridgeVersion"
+}
+$stagedAskBridgeCommand = Join-Path $binStageDir "ask-bridge.cmd"
+$stagedAskCommand = Join-Path $binStageDir "ask.cmd"
+foreach ($terminalCommand in @($stagedAskBridgeCommand, $stagedAskCommand)) {
+    $terminalVersion = (& $terminalCommand --version | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or $terminalVersion -notmatch "(?<![0-9])$([Regex]::Escape($askBridgeVersion))(?![0-9])") {
+        throw "Staged terminal command failed: $terminalCommand ($terminalVersion)"
+    }
 }
 $stagedNpx = Join-Path $runtimeStageDir "npx.cmd"
 & $stagedNpx --yes "chrome-devtools-mcp@$chromeDevtoolsMcpVersion" --version

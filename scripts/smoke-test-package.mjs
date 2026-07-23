@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { exec, execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -11,10 +11,13 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const stageDir = path.join(repoRoot, "release", "stage");
 const execFileAsync = promisify(execFile);
+const execAsync = promisify(exec);
 const nodeExe = process.argv[2] ?? path.join(stageDir, "runtime", "node.exe");
 const entry = process.argv[3] ?? path.join(stageDir, "app", "dist", "index.js");
 const askBridgeExe = path.join(stageDir, "bridge", "ask-bridge.exe");
 const askBridgeUpdaterExe = path.join(stageDir, "bridge", "ask-bridge-update.exe");
+const askBridgeCommand = path.join(stageDir, "bin", "ask-bridge.cmd");
+const askCommand = path.join(stageDir, "bin", "ask.cmd");
 const bundledNpx = path.join(stageDir, "runtime", "npx.cmd");
 const chromeDevtoolsMcpPackage = path.join(
   stageDir,
@@ -32,6 +35,8 @@ await access(nodeExe);
 await access(entry);
 await access(askBridgeExe);
 await access(askBridgeUpdaterExe);
+await access(askBridgeCommand);
+await access(askCommand);
 await access(bundledNpx);
 await access(chromeDevtoolsMcpPackage);
 await access(componentsManifest);
@@ -60,6 +65,19 @@ const { stdout: askBridgeVersionOutput } = await execFileAsync(askBridgeExe, ["-
   windowsHide: true,
 });
 assert.match(askBridgeVersionOutput, /\b0\.3\.10\b/);
+for (const command of [askBridgeCommand, askCommand]) {
+  const { stdout } = await execAsync(`"${command.replaceAll('"', '""')}" --version`, {
+    windowsHide: true,
+  });
+  assert.match(stdout, /\b0\.3\.10\b/);
+}
+
+const packagedModule = await import(pathToFileURL(path.join(stageDir, "app", "dist", "ask-bridge.js")));
+assert.equal(
+  packagedModule.resolveAskBridgeExecutable({}, nodeExe),
+  askBridgeExe,
+  "Packaged MCP server must auto-discover its bundled ask-bridge executable",
+);
 
 const transport = new StdioClientTransport({
   command: nodeExe,

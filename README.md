@@ -17,6 +17,16 @@
 & "$env:LOCALAPPDATA\Programs\ask-bridge-mcp\bridge\ask-bridge.exe" --version
 ```
 
+安裝程式會把自己的 `bin` 目錄加入目前使用者的 PATH。安裝完成後請關閉並重新開啟 Terminal，即可直接使用：
+
+```powershell
+ask-bridge --version
+ask-bridge --provider copilot login
+ask-bridge --provider copilot "請用繁體中文回答：MCP 與 Skill 有什麼差別？"
+```
+
+也可使用較短的等效指令 `ask`。這兩個命令只會啟動完整安裝包內固定版本的 `ask-bridge.exe`，不依賴電腦上另行安裝 Node.js、npm、npx 或其他 ask-bridge。
+
 第一次從 VS Code 呼叫 `ask_m365_copilot` 時，如果專用 Chrome profile 尚未登入，MCP Server 會自動關閉原本隱藏的背景 Chrome、開啟可見的登入視窗，並在登入完成後重送原問題。登入資料保存在 `%USERPROFILE%\.config\ask-bridge\chrome-profile`，升級或解除安裝程式不會刪除它。
 
 接著從 GitHub Releases 下載並執行 `install.exe`。安裝器會將程式安裝到：
@@ -210,7 +220,7 @@ release\install.exe.sha256
 release\uninstall.exe.sha256
 ```
 
-推送與 `package.json` 版本相同的 tag（例如 `v0.2.4`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
+推送與 `package.json` 版本相同的 tag（例如 `v0.2.5`）時，`.github/workflows/release.yml` 會在 GitHub 的 Windows runner 重新建置，並將兩個 EXE 與兩個 SHA-256 檔上傳為 GitHub Release assets。二進位檔不會寫入 Git commit 歷史。
 
 若建置電腦的 npm cache 已經備妥，也可以完全離線封裝：
 
@@ -228,7 +238,7 @@ npm run test:package
 
 ## 自訂 ask-bridge 路徑
 
-完整版安裝設定已將 `ASK_BRIDGE_PATH` 指向同一安裝目錄內的固定版本。開發或除錯時若要暫時改用其他建置，可以在 MCP Server 設定中覆寫為執行檔的絕對路徑：
+完整版安裝設定已將 `ASK_BRIDGE_PATH` 指向同一安裝目錄內的固定版本。即使沿用舊版 VS Code MCP 設定、沒有這個環境變數，MCP 也會依照內附 Node.js 的位置自動找到相鄰的 `bridge\ask-bridge.exe`。開發或除錯時若要暫時改用其他建置，可以在 MCP Server 設定中覆寫為執行檔的絕對路徑：
 
 ```json
 "env": {

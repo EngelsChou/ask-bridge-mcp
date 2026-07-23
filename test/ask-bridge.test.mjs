@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   askM365CopilotWithRunner,
   buildCopilotQueryInvocation,
+  resolveAskBridgeExecutable,
   requiresInteractiveLogin,
 } from "../dist/ask-bridge.js";
 import {
@@ -44,6 +45,24 @@ const options = {
   timeoutSeconds: 300,
   newConversation: true,
 };
+
+test("prefers an explicitly configured ask-bridge executable", () => {
+  const configured = String.raw`C:\custom\ask-bridge.exe`;
+  assert.equal(
+    resolveAskBridgeExecutable({ ASK_BRIDGE_PATH: `  ${configured}  ` }, "ignored", () => false),
+    configured,
+  );
+});
+
+test("auto-discovers the ask-bridge bundled beside the packaged Node runtime", () => {
+  const nodeExecutable = path.join("C:\\Program Files", "ask-bridge-mcp", "runtime", "node.exe");
+  const expected = path.resolve(path.dirname(nodeExecutable), "..", "bridge", "ask-bridge.exe");
+  assert.equal(resolveAskBridgeExecutable({}, nodeExecutable, (value) => value === expected), expected);
+});
+
+test("falls back to PATH for development and custom installations", () => {
+  assert.equal(resolveAskBridgeExecutable({}, process.execPath, () => false), "ask-bridge");
+});
 
 function withSupportedVersion(runner) {
   return (invocation, signal) =>

@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.2.4"
+  !define APP_VERSION "0.2.5"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.2.4.0"
+  !define FILE_VERSION "0.2.5.0"
 !endif
 !ifndef STAGE_DIR
   !error "STAGE_DIR is required"
@@ -37,6 +37,10 @@ VIAddVersionKey /LANG=1028 "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey /LANG=1028 "LegalCopyright" "Copyright (c) ${PRODUCT_PUBLISHER}"
 
 !include "MUI2.nsh"
+!include "StrFunc.nsh"
+!include "WinMessages.nsh"
+${StrStr}
+${UnStrRep}
 
 !define MUI_ABORTWARNING
 !define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\orange-install.ico"
@@ -52,6 +56,50 @@ VIAddVersionKey /LANG=1028 "LegalCopyright" "Copyright (c) ${PRODUCT_PUBLISHER}"
 
 !insertmacro MUI_LANGUAGE "TradChinese"
 
+Function AddBinToUserPath
+  ReadRegStr $0 HKCU "Environment" "Path"
+  StrCpy $1 "$INSTDIR\bin"
+  StrCmp $0 "" write_only
+
+  StrCpy $2 ";$0;"
+  ${StrStr} $3 "$2" ";$1;"
+  StrCmp $3 "" append notify
+
+  write_only:
+    WriteRegExpandStr HKCU "Environment" "Path" "$1"
+    Goto notify
+
+  append:
+    WriteRegExpandStr HKCU "Environment" "Path" "$1;$0"
+
+  notify:
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
+FunctionEnd
+
+Function un.RemoveBinFromUserPath
+  ReadRegStr $0 HKCU "Environment" "Path"
+  StrCmp $0 "" done
+
+  StrCpy $1 ";$0;"
+  ${UnStrRep} $2 "$1" ";$INSTDIR\bin;" ";"
+  StrCmp $2 $1 done
+  StrCmp $2 ";" clear_path
+
+  StrLen $3 $2
+  IntOp $3 $3 - 2
+  StrCpy $2 $2 $3 1
+  WriteRegExpandStr HKCU "Environment" "Path" "$2"
+  Goto notify
+
+  clear_path:
+    DeleteRegValue HKCU "Environment" "Path"
+
+  notify:
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
+
+  done:
+FunctionEnd
+
 Section "安裝 ask-bridge-mcp" SEC_MAIN
   SetShellVarContext current
 
@@ -59,6 +107,7 @@ Section "安裝 ask-bridge-mcp" SEC_MAIN
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\bridge"
   RMDir /r "$INSTDIR\runtime"
+  RMDir /r "$INSTDIR\bin"
   RMDir /r "$INSTDIR\examples"
   Delete "$INSTDIR\ask-bridge-mcp.cmd"
   Delete "$INSTDIR\vscode-mcp.json"
@@ -66,6 +115,7 @@ Section "安裝 ask-bridge-mcp" SEC_MAIN
 
   SetOutPath "$INSTDIR"
   File /r "${STAGE_DIR}\*.*"
+  Call AddBinToUserPath
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
   CreateDirectory "$SMPROGRAMS\ask-bridge-mcp"
@@ -86,6 +136,7 @@ SectionEnd
 
 Section "Uninstall"
   SetShellVarContext current
+  Call un.RemoveBinFromUserPath
 
   RMDir /r "$SMPROGRAMS\ask-bridge-mcp"
   DeleteRegKey HKCU "${PRODUCT_REG_KEY}"
@@ -93,6 +144,7 @@ Section "Uninstall"
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\bridge"
   RMDir /r "$INSTDIR\runtime"
+  RMDir /r "$INSTDIR\bin"
   RMDir /r "$INSTDIR\examples"
   Delete "$INSTDIR\ask-bridge-mcp.cmd"
   Delete "$INSTDIR\vscode-mcp.json"

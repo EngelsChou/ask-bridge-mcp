@@ -2,10 +2,10 @@ Unicode True
 RequestExecutionLevel user
 
 !ifndef APP_VERSION
-  !define APP_VERSION "0.2.4"
+  !define APP_VERSION "0.2.5"
 !endif
 !ifndef FILE_VERSION
-  !define FILE_VERSION "0.2.4.0"
+  !define FILE_VERSION "0.2.5.0"
 !endif
 !ifndef OUTPUT_FILE
   !define OUTPUT_FILE "uninstall.exe"
@@ -37,6 +37,9 @@ VIAddVersionKey /LANG=1028 "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey /LANG=1028 "LegalCopyright" "Copyright (c) ${PRODUCT_PUBLISHER}"
 
 !include "MUI2.nsh"
+!include "StrFunc.nsh"
+!include "WinMessages.nsh"
+${UnStrRep}
 
 !define MUI_ABORTWARNING
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\orange-uninstall.ico"
@@ -90,8 +93,33 @@ Function un.onInit
   StrCpy $INSTDIR "${INSTALL_DIR}"
 FunctionEnd
 
+Function un.RemoveBinFromUserPath
+  ReadRegStr $0 HKCU "Environment" "Path"
+  StrCmp $0 "" done
+
+  StrCpy $1 ";$0;"
+  ${UnStrRep} $2 "$1" ";${INSTALL_DIR}\bin;" ";"
+  StrCmp $2 $1 done
+  StrCmp $2 ";" clear_path
+
+  StrLen $3 $2
+  IntOp $3 $3 - 2
+  StrCpy $2 $2 $3 1
+  WriteRegExpandStr HKCU "Environment" "Path" "$2"
+  Goto notify
+
+  clear_path:
+    DeleteRegValue HKCU "Environment" "Path"
+
+  notify:
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
+
+  done:
+FunctionEnd
+
 Section "Uninstall"
   SetShellVarContext current
+  Call un.RemoveBinFromUserPath
 
   RMDir /r "$SMPROGRAMS\ask-bridge-mcp"
   DeleteRegKey HKCU "${PRODUCT_REG_KEY}"
@@ -99,6 +127,7 @@ Section "Uninstall"
   RMDir /r "${INSTALL_DIR}\app"
   RMDir /r "${INSTALL_DIR}\bridge"
   RMDir /r "${INSTALL_DIR}\runtime"
+  RMDir /r "${INSTALL_DIR}\bin"
   RMDir /r "${INSTALL_DIR}\examples"
   Delete "${INSTALL_DIR}\ask-bridge-mcp.cmd"
   Delete "${INSTALL_DIR}\vscode-mcp.json"
