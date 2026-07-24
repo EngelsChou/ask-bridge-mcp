@@ -209,9 +209,18 @@ if ($AskBridgeArchive) {
             throw "curl.exe is required to download the pinned ask-bridge component. Pass -AskBridgeArchive <path> to build without downloading."
         }
         Write-Host "Downloading ask-bridge $askBridgeVersion from its pinned GitHub Release"
-        & $curlExe -L --fail --output $resolvedAskBridgeArchive $askBridgeArchiveUrl
-        if ($LASTEXITCODE -ne 0) {
-            throw "ask-bridge component download failed with exit code $LASTEXITCODE."
+        $downloadSuccess = $false
+        for ($retry = 1; $retry -le 10; $retry++) {
+            & $curlExe -L --fail --output $resolvedAskBridgeArchive $askBridgeArchiveUrl
+            if ($LASTEXITCODE -eq 0) {
+                $downloadSuccess = $true
+                break
+            }
+            Write-Host "Download attempt $retry failed; retrying in 15 seconds..."
+            Start-Sleep -Seconds 15
+        }
+        if (-not $downloadSuccess) {
+            throw "ask-bridge component download failed after multiple retries."
         }
     }
 }

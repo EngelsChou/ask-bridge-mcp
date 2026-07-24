@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, open, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -239,8 +239,8 @@ test("validates absolute regular local attachment paths", async (t) => {
     attachmentConsent: true,
   });
   try {
-    assert.deepEqual(prepared.imagePaths, [image]);
-    assert.deepEqual(prepared.filePaths, [source]);
+    assert.deepEqual(prepared.imagePaths, [await realpath(image)]);
+    assert.deepEqual(prepared.filePaths, [await realpath(source)]);
   } finally {
     await prepared.cleanup();
   }
