@@ -58,7 +58,7 @@ assert.equal(
 
 const components = JSON.parse(await readFile(componentsManifest, "utf8"));
 const chromeDevtoolsPackage = JSON.parse(await readFile(chromeDevtoolsMcpPackage, "utf8"));
-assert.equal(components.askBridge.version, "0.3.14");
+assert.equal(components.askBridge.version, "0.3.15");
 assert.equal(components.chromeDevtoolsMcp.version, "1.5.0");
 assert.equal(chromeDevtoolsPackage.version, components.chromeDevtoolsMcp.version);
 const { stdout: askBridgeVersionOutput } = await execFileAsync(askBridgeExe, ["--version"], {

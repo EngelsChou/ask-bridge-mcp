@@ -282,7 +282,7 @@ function isSupportedVersion(version: ParsedVersion): boolean {
 }
 
 function versionUpgradeGuidance(detail: string): string {
-  return `${detail} Upgrade ask-bridge by reinstalling the latest complete ask-bridge-mcp package (or set ASK_BRIDGE_PATH to ask-bridge 0.3.14 or later), then fully restart VS Code.`;
+  return `${detail} Upgrade ask-bridge by reinstalling the latest complete ask-bridge-mcp package (or set ASK_BRIDGE_PATH to ask-bridge 0.3.15 or later), then fully restart VS Code.`;
 }
 
 async function ensureSupportedAskBridgeVersion(
@@ -319,7 +319,7 @@ async function ensureSupportedAskBridgeVersion(
   if (!isSupportedVersion(version)) {
     throw new Error(
       versionUpgradeGuidance(
-        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.14 or later.`,
+        `Installed ask-bridge ${version.text} is too old; ask-bridge-mcp requires ask-bridge 0.3.15 or later.`,
       ),
     );
   }
