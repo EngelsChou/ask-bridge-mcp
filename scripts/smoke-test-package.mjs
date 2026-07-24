@@ -64,12 +64,13 @@ assert.equal(chromeDevtoolsPackage.version, components.chromeDevtoolsMcp.version
 const { stdout: askBridgeVersionOutput } = await execFileAsync(askBridgeExe, ["--version"], {
   windowsHide: true,
 });
-assert.match(askBridgeVersionOutput, /\b0\.3\.12\b/);
+const expectedVersionRegex = new RegExp(`\\b${components.askBridge.version.replaceAll('.', '\\.')}\\b`);
+assert.match(askBridgeVersionOutput, expectedVersionRegex);
 for (const command of [askBridgeCommand, askCommand]) {
   const { stdout } = await execAsync(`"${command.replaceAll('"', '""')}" --version`, {
     windowsHide: true,
   });
-  assert.match(stdout, /\b0\.3\.12\b/);
+  assert.match(stdout, expectedVersionRegex);
 }
 
 const packagedModule = await import(pathToFileURL(path.join(stageDir, "app", "dist", "ask-bridge.js")));
