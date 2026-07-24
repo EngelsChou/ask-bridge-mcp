@@ -121,10 +121,11 @@ Microsoft 公開且相對穩定的模式名稱為 `Auto`、`Quick response`、`T
 使用 `#ask_m365_copilot_listener` 可把 M365 Chat 當成互動式分析工作區：
 
 1. VS Code 會啟動 listener tool call，並開啟 ask-bridge 管理的可見 Chrome。
-2. 你可直接在 M365 Chat 上傳檔案、截圖、OneDrive 或其他工作內容並提問。
-3. M365 composer 旁會顯示 `Return VS Code`；回覆仍在生成時按鈕保持停用。
-4. 分析完成後按下按鈕，最後一則 M365 回覆會成為 MCP tool result。
-5. VS Code Copilot Chat 的 Agent 收到結果後，會繼續執行原本的工作。
+2. 若頁面要求登入，可從容完成帳號密碼與 MFA；listener 會在整個 `timeoutSeconds` 期間等待登入完成與聊天輸入框就緒，之後才注入按鈕（ask-bridge 0.3.16 起）。
+3. 你可直接在 M365 Chat 上傳檔案、截圖、OneDrive 或其他工作內容並提問。
+4. M365 composer 旁會顯示按鈕：尚無任何回覆時顯示 `Waiting for response…` 並停用，回覆生成中顯示 `Waiting for M365…`，回覆完成後才變成可點擊的 `Return VS Code`。
+5. 分析完成後按下按鈕，最後一則 M365 回覆會成為 MCP tool result（按鈕為單次使用，回傳後自動移除；要再次回傳請重新呼叫 listener）。
+6. VS Code Copilot Chat 的 Agent 收到結果後，會繼續執行原本的工作。
 
 ```text
 #ask_m365_copilot_listener 等我在 M365 完成互動分析並按下 Return VS Code 後，根據回傳結果繼續修改程式。
