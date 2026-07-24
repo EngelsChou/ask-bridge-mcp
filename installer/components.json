@@ -4,7 +4,7 @@
     "branch": "main-add-m365-copilot",
     "commit": "d02c69fd862257c9607211cecdc85845ff65c542",
     "archiveUrl": "https://github.com/EngelsChou/ask-bridge/releases/download/v0.3.13/ask-bridge-x86_64-pc-windows-msvc.zip",
-    "archiveSha256": "bdd5caa96fcb58ee8c319b9fe0a787223a3f6f0847f7ea44f9e5961ce0948650"
+    "archiveSha256": "b425816ce280d78aca6b217cd11246183403200cc2950bef5892228ba1b47c2d"
   },
   "chromeDevtoolsMcp": {
     "version": "1.5.0"
