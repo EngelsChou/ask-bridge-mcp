@@ -69,7 +69,7 @@ test("falls back to PATH for development and custom installations", () => {
 function withSupportedVersion(runner) {
   return (invocation, signal) =>
     invocation.kind === "version"
-      ? Promise.resolve({ stdout: "ask-bridge 0.3.13\n", stderr: "" })
+      ? Promise.resolve({ stdout: "ask-bridge 0.3.14\n", stderr: "" })
       : runner(invocation, signal);
 }
 
