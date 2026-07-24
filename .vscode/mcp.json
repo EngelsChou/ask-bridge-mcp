@@ -2,10 +2,13 @@
   "servers": {
     "m365Copilot": {
       "type": "stdio",
-      "command": "node",
-      "args": ["${workspaceFolder}/dist/index.js"],
+      "command": "C:/Users/User/AppData/Local/Programs/ask-bridge-mcp/runtime/node.exe",
+      "args": [
+        "C:/Users/User/AppData/Local/Programs/ask-bridge-mcp/app/dist/index.js"
+      ],
       "env": {
-        "ASK_BRIDGE_ALLOWED_ROOTS": "${workspaceFolder}"
+        "ASK_BRIDGE_PATH": "C:/Users/User/AppData/Local/Programs/ask-bridge-mcp/bridge/ask-bridge.exe",
+        "ASK_BRIDGE_ALLOWED_ROOTS": "${workspaceFolder};"
       }
     }
   }
