@@ -136,6 +136,16 @@ Listener input 只有：
 - `newConversation`：預設 `false`，保留目前 M365 對話；設為 `true` 才開新對話。
 - `timeoutSeconds`：預設 1800 秒，可設定 30–7200 秒。
 
+VS Code 的 host agent 有時會自行帶入很短的 `timeoutSeconds`（例如 30 秒），導致你還在 M365 頁面操作時 listener 就逾時。MCP server 會以 `ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS`（未設定時為 1800 秒 = 30 分鐘）作為**等待時間下限**：低於下限的請求會自動拉高，較長的請求維持不變。可在 `mcp.json` 的 `env` 中調整：
+
+```jsonc
+"env": {
+  "ASK_BRIDGE_PATH": "...",
+  "ASK_BRIDGE_ALLOWED_ROOTS": "${workspaceFolder}",
+  "ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS": "1800"
+}
+```
+
 此工具沒有 `prompt`、`model`、`imagePaths` 或 `filePaths` 欄位。檔案與工作資料由你直接在 M365 頁面選擇並傳給 Microsoft，不經 VS Code Agent 自動挑選；只有按下按鈕時的最後一則文字回覆會送回 VS Code。M365 官方的手動加入內容流程可參考[在 Copilot Chat 提示中新增內容](https://support.microsoft.com/en-us/microsoft-365-copilot/add-content-to-microsoft-365-copilot-chat-prompts)。
 
 等待期間不要取消該 tool call。若手動取消或等待逾時，頁面按鈕會在 heartbeat 停止後自動移除；重新呼叫 listener 即可再次啟動。

@@ -2,12 +2,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { askM365Copilot, listenM365Copilot } from "./ask-bridge.js";
+import {
+  askM365Copilot,
+  listenM365Copilot,
+  resolveListenerTimeoutSeconds,
+} from "./ask-bridge.js";
 import { MAX_ATTACHMENTS, type InlineImageInput } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 import { M365_MODEL_PRESETS } from "./model-presets.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.18" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.19" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -215,11 +219,15 @@ server.registerTool(
         .max(7200)
         .default(1800)
         .describe(
-          "Maximum time to wait for the user to click Return VS Code, from 30 seconds to 2 hours",
+          "Maximum time to wait for the user to click Return VS Code, from 30 seconds to 2 hours. The user works manually in the M365 page, so do NOT pass small values; requests below the configured floor (ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS, default 1800) are raised to that floor.",
         ),
     },
   },
-  async (args, { signal }) => executeListenerTool(args, signal),
+  async (args, { signal }) =>
+    executeListenerTool(
+      { ...args, timeoutSeconds: resolveListenerTimeoutSeconds(args.timeoutSeconds) },
+      signal,
+    ),
 );
 
 const transport = new StdioServerTransport();

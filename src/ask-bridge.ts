@@ -138,6 +138,36 @@ const CLEANUP_ATTEMPTS = 3;
 const DEFAULT_CLEANUP_RETRY_DELAY_MS = 50;
 const PROCESS_CLOSE_GRACE_MS = 1_000;
 
+export const LISTENER_TIMEOUT_ENV = "ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS";
+const LISTENER_TIMEOUT_DEFAULT_SECONDS = 1800;
+const LISTENER_TIMEOUT_MIN_SECONDS = 30;
+const LISTENER_TIMEOUT_MAX_SECONDS = 7200;
+
+/// The VS Code host agent routinely passes very small timeoutSeconds values
+/// (for example 30), which aborts the interactive listener while the user is
+/// still working in the M365 page. The configured value acts as a floor: the
+/// effective wait is never shorter than ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS
+/// (default 1800 seconds), while an explicitly longer request is preserved.
+export function resolveListenerTimeoutSeconds(
+  requested: number | undefined,
+  environment: NodeJS.ProcessEnv = process.env,
+): number {
+  let floor = LISTENER_TIMEOUT_DEFAULT_SECONDS;
+  const raw = environment[LISTENER_TIMEOUT_ENV]?.trim();
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      floor = Math.min(
+        LISTENER_TIMEOUT_MAX_SECONDS,
+        Math.max(LISTENER_TIMEOUT_MIN_SECONDS, Math.trunc(parsed)),
+      );
+    }
+  }
+  const requestedSeconds =
+    typeof requested === "number" && Number.isFinite(requested) ? Math.trunc(requested) : 0;
+  return Math.min(LISTENER_TIMEOUT_MAX_SECONDS, Math.max(requestedSeconds, floor));
+}
+
 export function resolveAskBridgeExecutable(
   environment: NodeJS.ProcessEnv = process.env,
   nodeExecutable: string = process.execPath,
