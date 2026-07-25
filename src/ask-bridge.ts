@@ -201,8 +201,25 @@ function askBridgeEnvironment(requestId: string): NodeJS.ProcessEnv {
   return environment;
 }
 
-export function buildCopilotQueryInvocation(options: AskOptions): AskBridgeInvocation {
+export const QUERY_HEADFUL_ENV = "ASK_BRIDGE_QUERY_HEADFUL";
+
+/// Whether ask_m365_copilot queries drive a visible Chrome window. Showing the
+/// window is the default so the M365 automation is never a black box: users can
+/// watch the prompt being typed and the answer arrive. Set
+/// ASK_BRIDGE_QUERY_HEADFUL=false in the MCP server env to keep queries in the
+/// off-screen background window instead.
+export function resolveQueryHeadful(environment: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = environment[QUERY_HEADFUL_ENV]?.trim().toLowerCase();
+  if (!raw) return true;
+  return !["false", "0", "no", "off"].includes(raw);
+}
+
+export function buildCopilotQueryInvocation(
+  options: AskOptions,
+  headful: boolean = resolveQueryHeadful(),
+): AskBridgeInvocation {
   const args = ["--provider", "copilot", "--timeout", String(options.timeoutSeconds)];
+  args.push(headful ? "--headless=false" : "--headless=true");
   if (options.newConversation) args.push("--new");
   if (options.model?.trim()) args.push("--model", options.model.trim());
   for (const imagePath of options.imagePaths ?? []) args.push("--image", imagePath);
@@ -215,7 +232,9 @@ export function buildCopilotQueryInvocation(options: AskOptions): AskBridgeInvoc
     // command-line argument fails around the 32K command-line limit, so stream
     // the prompt through stdin and close the pipe explicitly.
     stdin: options.prompt,
-    windowsHide: true,
+    // A visible query drives the same managed Chrome window as the listener,
+    // which needs the process tree that owns it to stay unhidden.
+    windowsHide: !headful,
     requestId: options.requestId,
   };
 }

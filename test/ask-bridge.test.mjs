@@ -79,7 +79,7 @@ test("streams large prompts through stdin instead of the Windows command line", 
 
   assert.equal(invocation.stdin, largePrompt);
   assert.ok(!invocation.args.includes(largePrompt));
-  assert.deepEqual(invocation.args, ["--provider", "copilot", "--timeout", "300", "--new"]);
+  assert.deepEqual(invocation.args, ["--provider", "copilot", "--timeout", "300", "--headless=false", "--new"]);
 });
 
 test("passes the current Microsoft 365 GPT submenu model separately from the VS Code host model", () => {
@@ -93,6 +93,7 @@ test("passes the current Microsoft 365 GPT submenu model separately from the VS 
     "copilot",
     "--timeout",
     "300",
+    "--headless=false",
     "--new",
     "--model",
     "GPT 5.5 快速回應",
@@ -212,6 +213,7 @@ test("adds repeated image and file arguments without moving the prompt onto argv
     "copilot",
     "--timeout",
     "300",
+    "--headless=false",
     "--new",
     "--image",
     String.raw`C:\screenshots\order header.png`,

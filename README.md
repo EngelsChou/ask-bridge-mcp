@@ -142,9 +142,20 @@ VS Code 的 host agent 有時會自行帶入很短的 `timeoutSeconds`（例如 
 "env": {
   "ASK_BRIDGE_PATH": "...",
   "ASK_BRIDGE_ALLOWED_ROOTS": "${workspaceFolder}",
-  "ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS": "1800"
+  "ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS": "1800",
+  "ASK_BRIDGE_QUERY_HEADFUL": "true"
 }
 ```
+
+### 查詢時是否顯示 Chrome 視窗
+
+`ask_m365_copilot` 與各固定模型工具**預設會顯示** ask-bridge 管理的 Chrome 視窗，讓你看得到題目送出與回覆產生的過程。若希望查詢改在背景（螢幕外）執行，在 `mcp.json` 的 `env` 設定 `ASK_BRIDGE_QUERY_HEADFUL` 為 `false`（亦接受 `0`、`no`、`off`）：
+
+```jsonc
+"ASK_BRIDGE_QUERY_HEADFUL": "false"
+```
+
+此設定只影響查詢工具；`ask_m365_copilot_listener` 本質上是互動式的，一律顯示視窗。
 
 此工具沒有 `prompt`、`model`、`imagePaths` 或 `filePaths` 欄位。檔案與工作資料由你直接在 M365 頁面選擇並傳給 Microsoft，不經 VS Code Agent 自動挑選；只有按下按鈕時的最後一則文字回覆會送回 VS Code。M365 官方的手動加入內容流程可參考[在 Copilot Chat 提示中新增內容](https://support.microsoft.com/en-us/microsoft-365-copilot/add-content-to-microsoft-365-copilot-chat-prompts)。
 

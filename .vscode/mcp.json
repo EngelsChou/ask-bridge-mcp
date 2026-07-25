@@ -9,7 +9,8 @@
       "env": {
         "ASK_BRIDGE_PATH": "C:/Users/User/AppData/Local/Programs/ask-bridge-mcp/bridge/ask-bridge.exe",
         "ASK_BRIDGE_ALLOWED_ROOTS": "${workspaceFolder};",
-        "ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS": "1800"
+        "ASK_BRIDGE_LISTENER_TIMEOUT_SECONDS": "1800",
+        "ASK_BRIDGE_QUERY_HEADFUL": "true"
       }
     }
   }
