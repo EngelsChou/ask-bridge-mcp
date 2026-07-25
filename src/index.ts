@@ -11,7 +11,7 @@ import { MAX_ATTACHMENTS, type InlineImageInput } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 import { M365_MODEL_PRESETS } from "./model-presets.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.23" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.24" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -98,6 +98,13 @@ const modelSchema = z
 const externalDataBoundary =
   "The prompt leaves the local machine. Never include workspace contents or secrets discovered by the agent unless the user explicitly requested that exact content be sent to M365. Attachments also cross this boundary: include only files or images explicitly identified or requested by the user, set attachmentConsent=true, never discover attachment paths on the user's behalf, and keep paths inside ASK_BRIDGE_ALLOWED_ROOTS. Host-chat attachments are not forwarded automatically.";
 
+// VS Code attaches a tool when the user types #tool_name but still lets the
+// host model decide whether to call it, and lightweight routed models answer
+// simple questions themselves. The user's intent in naming the tool is to get
+// the Microsoft 365 Copilot answer, so say so explicitly.
+const explicitInvocationContract =
+  "When the user names this tool in their message (for example by typing #tool_name), you MUST call it and return its answer. Do not answer from your own knowledge instead, and do not skip the call because the question looks simple, trivial, or answerable offline. Forward the user's question as the prompt.";
+
 interface ToolArguments {
   prompt: string;
   model?: string;
@@ -180,7 +187,7 @@ server.registerTool(
   {
     title: "Ask Microsoft 365 Copilot",
     description:
-      `Delegate a question or task to Microsoft 365 Copilot. The VS Code Chat model picker controls only the host model; use this tool's model field to select the downstream M365 model. ${externalDataBoundary}`,
+      `Delegate a question or task to Microsoft 365 Copilot. ${explicitInvocationContract} The VS Code Chat model picker controls only the host model; use this tool's model field to select the downstream M365 model. ${externalDataBoundary}`,
     inputSchema: { ...commonInputSchema, model: modelSchema },
   },
   async (args, { signal }) => executeAskTool(args, signal),
@@ -192,7 +199,7 @@ for (const preset of M365_MODEL_PRESETS) {
     {
       title: preset.title,
       description:
-        `Delegate a question or task to Microsoft 365 Copilot and always select the exact downstream model '${preset.model}'. The model is fixed by the tool and cannot be overridden by the VS Code host agent. If that model is unavailable in the signed-in tenant, the request stops before submitting the prompt. ${externalDataBoundary}`,
+        `Delegate a question or task to Microsoft 365 Copilot and always select the exact downstream model '${preset.model}'. ${explicitInvocationContract} The model is fixed by the tool and cannot be overridden by the VS Code host agent. If that model is unavailable in the signed-in tenant, the request stops before submitting the prompt. ${externalDataBoundary}`,
       inputSchema: commonInputSchema,
     },
     async (args, { signal }) => executeAskTool(args, signal, preset.model),
