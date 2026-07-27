@@ -9,9 +9,8 @@ import {
 } from "./ask-bridge.js";
 import { MAX_ATTACHMENTS, type InlineImageInput } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
-import { M365_MODEL_PRESETS } from "./model-presets.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.24" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.25" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -72,10 +71,6 @@ const commonInputSchema = {
     .describe(
       "Set true only when the user explicitly requested that every attachment in this tool call be transmitted to Microsoft 365 Copilot; required whenever any path, inline image, or clipboard image is included",
     ),
-  newConversation: z
-    .boolean()
-    .default(true)
-    .describe("Start a new Copilot conversation; defaults to true to avoid unrelated context"),
   timeoutSeconds: z
     .number()
     .int()
@@ -187,24 +182,22 @@ server.registerTool(
   {
     title: "Ask Microsoft 365 Copilot",
     description:
-      `Delegate a question or task to Microsoft 365 Copilot. ${explicitInvocationContract} The VS Code Chat model picker controls only the host model; use this tool's model field to select the downstream M365 model. ${externalDataBoundary}`,
+      `Ask Microsoft 365 Copilot inside the conversation that is already open, so the M365 chat keeps its history, uploaded files, and selected model. ${explicitInvocationContract} To start a brand-new M365 conversation instead, use ask_m365_copilot_new_conversion. The VS Code Chat model picker controls only the host model; use this tool's model field to select the downstream M365 model. ${externalDataBoundary}`,
     inputSchema: { ...commonInputSchema, model: modelSchema },
   },
-  async (args, { signal }) => executeAskTool(args, signal),
+  async (args, { signal }) => executeAskTool({ ...args, newConversation: false }, signal),
 );
 
-for (const preset of M365_MODEL_PRESETS) {
-  server.registerTool(
-    preset.toolName,
-    {
-      title: preset.title,
-      description:
-        `Delegate a question or task to Microsoft 365 Copilot and always select the exact downstream model '${preset.model}'. ${explicitInvocationContract} The model is fixed by the tool and cannot be overridden by the VS Code host agent. If that model is unavailable in the signed-in tenant, the request stops before submitting the prompt. ${externalDataBoundary}`,
-      inputSchema: commonInputSchema,
-    },
-    async (args, { signal }) => executeAskTool(args, signal, preset.model),
-  );
-}
+server.registerTool(
+  "ask_m365_copilot_new_conversion",
+  {
+    title: "Ask Microsoft 365 Copilot in a new conversation",
+    description:
+      `Start a brand-new Microsoft 365 Copilot conversation and ask this question in it, discarding the context of the previous M365 chat. ${explicitInvocationContract} Use ask_m365_copilot instead when the question continues the current M365 conversation. ${externalDataBoundary}`,
+    inputSchema: { ...commonInputSchema, model: modelSchema },
+  },
+  async (args, { signal }) => executeAskTool({ ...args, newConversation: true }, signal),
+);
 
 server.registerTool(
   "ask_m365_copilot_listener",

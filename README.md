@@ -99,22 +99,24 @@ VS Code Chat 頂端的模型選擇器只決定哪個模型負責規劃並呼叫 
 
 Microsoft 公開且相對穩定的模式名稱為 `Auto`、`Quick response`、`Think deeper`；也可填入 M365 的 GPT／More 子選單中當下可見的完整名稱，例如 `GPT 5.5 Think deeper`、`GPT 5.5 快速回應` 或 `Claude`。選項依租戶、授權、管理原則與 Microsoft 上線進度而異；找不到指定項目時，請求會在送出 prompt 前停止。
 
-若不希望依賴 VS Code Agent 正確填入 `model`，可直接選擇固定模型工具。固定工具的 Input 不接受 `model`，工具名稱會強制決定下游 M365 模型：
+`GPT 5.6 Think deeper` 之類的選項只有在登入的公司租戶已顯示時才能使用；若尚未提供，工具會在送出 prompt 前回報找不到模型。
 
-| VS Code Chat 工具 | 固定的 M365 model |
+### 三個工具與對話的關係
+
+| VS Code Chat 工具 | M365 對話 |
 |---|---|
-| `#ask_m365_copilot_auto` | `Auto` |
-| `#ask_m365_copilot_gpt_5_5_think_deeper` | `GPT 5.5 Think deeper` |
-| `#ask_m365_copilot_gpt_5_5_quick_response` | `GPT 5.5 快速回應` |
-| `#ask_m365_copilot_gpt_5_6_think_deeper` | `GPT 5.6 Think deeper` |
+| `#ask_m365_copilot` | **延續**目前開著的對話（保留歷史、已上傳檔案與已選模型） |
+| `#ask_m365_copilot_new_conversion` | **開新對話**後再提問，捨棄先前上下文 |
+| `#ask_m365_copilot_listener` | 把頁面交給你手動操作，按下 `Return VS Code` 才回傳 |
 
-例如：
+要開新對話或延續對話，是由**你選哪個工具**決定，而不是靠 Input 參數；兩個提問工具都沒有 `newConversation` 欄位，因此 VS Code Agent 無法自行決定重開對話。三者可交互使用，例如：
 
 ```text
-#ask_m365_copilot_gpt_5_5_quick_response 請快速整理這份規格的重點。
+#ask_m365_copilot_new_conversion 請分析這份規格的重點。
+#ask_m365_copilot 延續上題，列出風險。
+#ask_m365_copilot_listener 我在 M365 補上傳檔案後再按 Return VS Code。
+#ask_m365_copilot 根據剛才回傳的內容繼續修改程式。
 ```
-
-`GPT 5.6 Think deeper` 只有在登入的公司租戶已顯示該選項時才能使用；若尚未提供，工具會在送出 prompt 前回報找不到模型。原本的 `#ask_m365_copilot` 仍保留，可透過 Input JSON 的 `model` 動態選擇其他租戶可見模型。
 
 ### 從 M365 網頁手動分析後回傳 VS Code
 

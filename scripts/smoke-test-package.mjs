@@ -58,7 +58,7 @@ assert.equal(
 
 const components = JSON.parse(await readFile(componentsManifest, "utf8"));
 const chromeDevtoolsPackage = JSON.parse(await readFile(chromeDevtoolsMcpPackage, "utf8"));
-assert.equal(components.askBridge.version, "0.3.22");
+assert.equal(components.askBridge.version, "0.3.23");
 assert.equal(components.chromeDevtoolsMcp.version, "1.5.0");
 assert.equal(chromeDevtoolsPackage.version, components.chromeDevtoolsMcp.version);
 const { stdout: askBridgeVersionOutput } = await execFileAsync(askBridgeExe, ["--version"], {
@@ -78,9 +78,6 @@ assert.equal(
   packagedModule.resolveAskBridgeExecutable({}, nodeExe),
   askBridgeExe,
   "Packaged MCP server must auto-discover its bundled ask-bridge executable",
-);
-const packagedPresets = await import(
-  pathToFileURL(path.join(stageDir, "app", "dist", "model-presets.js"))
 );
 
 const transport = new StdioClientTransport({
@@ -112,24 +109,28 @@ try {
       `Packaged ask_m365_copilot schema is missing ${property}`,
     );
   }
-  for (const preset of packagedPresets.M365_MODEL_PRESETS) {
-    const fixedTool = tools.find((candidate) => candidate.name === preset.toolName);
-    assert.ok(fixedTool, `Packaged MCP server did not expose ${preset.toolName}`);
-    assert.ok(
-      fixedTool.inputSchema?.properties?.prompt,
-      `Packaged fixed-model tool ${preset.toolName} is missing prompt`,
-    );
+  const freshTool = tools.find(
+    (candidate) => candidate.name === "ask_m365_copilot_new_conversion",
+  );
+  assert.ok(freshTool, "Packaged MCP server did not expose ask_m365_copilot_new_conversion");
+  assert.ok(
+    freshTool.inputSchema?.properties?.prompt,
+    "Packaged ask_m365_copilot_new_conversion schema is missing prompt",
+  );
+  // Whether a new M365 conversation starts is decided by the tool, never by an
+  // argument the host agent can flip on its own.
+  for (const askTool of [tool, freshTool]) {
     assert.equal(
-      fixedTool.inputSchema?.properties?.model,
+      askTool?.inputSchema?.properties?.newConversation,
       undefined,
-      `Packaged fixed-model tool ${preset.toolName} must not allow model overrides`,
-    );
-    assert.match(
-      fixedTool.description ?? "",
-      new RegExp(preset.model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
-      `Packaged fixed-model tool ${preset.toolName} must describe ${preset.model}`,
+      `${askTool?.name} must not expose newConversation`,
     );
   }
+  assert.deepEqual(
+    tools.map((candidate) => candidate.name).sort(),
+    ["ask_m365_copilot", "ask_m365_copilot_listener", "ask_m365_copilot_new_conversion"],
+    "Packaged MCP server must expose exactly the two ask tools plus the listener",
+  );
   const listener = tools.find(
     (candidate) => candidate.name === "ask_m365_copilot_listener",
   );

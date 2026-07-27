@@ -3,8 +3,6 @@ import { spawn } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { M365_MODEL_PRESETS } from "../dist/model-presets.js";
-
 const serverEntry = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 
 async function listTools() {
@@ -61,7 +59,7 @@ async function listTools() {
 
 test("every query tool tells the host agent that an explicit #mention must be called", async () => {
   const tools = await listTools();
-  const queryToolNames = ["ask_m365_copilot", ...M365_MODEL_PRESETS.map((preset) => preset.toolName)];
+  const queryToolNames = ["ask_m365_copilot", "ask_m365_copilot_new_conversion"];
 
   for (const name of queryToolNames) {
     const tool = tools.find((candidate) => candidate.name === name);
@@ -71,14 +69,21 @@ test("every query tool tells the host agent that an explicit #mention must be ca
   }
 });
 
-test("fixed-model tools still name their exact downstream model", async () => {
+test("only the two ask tools plus the listener are exposed", async () => {
   const tools = await listTools();
-  for (const preset of M365_MODEL_PRESETS) {
-    const tool = tools.find((candidate) => candidate.name === preset.toolName);
-    assert.ok(tool, `missing tool ${preset.toolName}`);
-    assert.ok(
-      tool.description.includes(`'${preset.model}'`),
-      `${preset.toolName} should pin ${preset.model}`,
-    );
-  }
+  assert.deepEqual(
+    tools.map((tool) => tool.name).sort(),
+    ["ask_m365_copilot", "ask_m365_copilot_listener", "ask_m365_copilot_new_conversion"],
+  );
+});
+
+test("the two ask tools describe their opposite conversation behaviour", async () => {
+  const tools = await listTools();
+  const ask = tools.find((tool) => tool.name === "ask_m365_copilot");
+  const fresh = tools.find((tool) => tool.name === "ask_m365_copilot_new_conversion");
+  assert.match(ask.description, /conversation that is already open/);
+  assert.match(fresh.description, /Start a brand-new Microsoft 365 Copilot conversation/);
+  // Neither exposes newConversation: the choice is the tool, not an argument.
+  assert.ok(!Object.keys(ask.inputSchema.properties).includes("newConversation"));
+  assert.ok(!Object.keys(fresh.inputSchema.properties).includes("newConversation"));
 });

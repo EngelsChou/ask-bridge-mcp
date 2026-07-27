@@ -1,10 +1,10 @@
 {
   "askBridge": {
-    "version": "0.3.22",
+    "version": "0.3.23",
     "branch": "main",
-    "commit": "2982088ca1e5b880742498d8a1e963e5bbacb852",
-    "archiveUrl": "https://github.com/EngelsChou/ask-bridge/releases/download/v0.3.22/ask-bridge-x86_64-pc-windows-msvc.zip",
-    "archiveSha256": "3cb4b84a7c009b1aeaae40f37889b9cd0d48a87e49f8321e3826ee83327323fb"
+    "commit": "c6a86a5afc866842da5b856a6c81abf3f7bc5a94",
+    "archiveUrl": "https://github.com/EngelsChou/ask-bridge/releases/download/v0.3.23/ask-bridge-x86_64-pc-windows-msvc.zip",
+    "archiveSha256": "bd1fe654799fee276d9133c0c255494bae8533872cb888c22c702ea11450efea"
   },
   "chromeDevtoolsMcp": {
     "version": "1.5.0"
