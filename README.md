@@ -108,8 +108,13 @@ Microsoft 公開且相對穩定的模式名稱為 `Auto`、`Quick response`、`T
 | `#ask_m365_copilot` | **延續**目前開著的對話（保留歷史、已上傳檔案與已選模型） |
 | `#ask_m365_copilot_new_conversion` | **開新對話**後再提問，捨棄先前上下文 |
 | `#ask_m365_copilot_listener` | 把頁面交給你手動操作，按下 `Return VS Code` 才回傳 |
+| `#ask_m365_copilot_clear` | 關閉受管的 Chrome（等同 `ask-bridge --provider copilot close`），不提問 |
 
-要開新對話或延續對話，是由**你選哪個工具**決定，而不是靠 Input 參數；兩個提問工具都沒有 `newConversation` 欄位，因此 VS Code Agent 無法自行決定重開對話。三者可交互使用，例如：
+要開新對話或延續對話，是由**你選哪個工具**決定，而不是靠 Input 參數；兩個提問工具都沒有 `newConversation` 欄位，因此 VS Code Agent 無法自行決定重開對話。
+
+`#ask_m365_copilot_clear` 是卡住時的救援手段：瀏覽器停在登入頁、跳出自動化關不掉的對話框、或視窗被手動關掉導致每次請求都失敗時，用它關掉受管 Chrome，下一次提問會自動重開。**登入狀態會保留**（關的是瀏覽器程序，不是 profile），但 M365 端的對話會回到它自己記得的狀態，因此清除後若在意對話乾淨，請接 `#ask_m365_copilot_new_conversion`。
+
+四者可交互使用，例如：
 
 ```text
 #ask_m365_copilot_new_conversion 請分析這份規格的重點。

@@ -774,6 +774,69 @@ export async function listenM365CopilotWithRunner(
   }
 }
 
+export interface ClearOptions {
+  requestId?: string;
+  signal?: AbortSignal;
+}
+
+/// Stop the managed Chrome instance. Recovery hatch for a browser left in a
+/// state no request can use (a stuck sign-in page, a modal the automation
+/// cannot dismiss, or a window the user closed halfway). The next tool call
+/// starts a fresh Chrome; the ask-bridge profile, and therefore the M365
+/// sign-in, is preserved.
+export async function clearM365CopilotWithRunner(
+  options: ClearOptions,
+  runner: AskBridgeRunner,
+  dependencies: ListenerExecutionDependencies = {},
+): Promise<string> {
+  const requestId = options.requestId ?? createRequestId();
+  const startedAt = Date.now();
+  const diagnostic =
+    dependencies.onDiagnostic ??
+    ((event: string, details: Record<string, unknown>) =>
+      emitDiagnostic(requestId, event, details));
+  const report = (event: string, details: Record<string, unknown>) => {
+    try {
+      diagnostic(event, details);
+    } catch {
+      // Diagnostics are deliberately best-effort.
+    }
+  };
+  let release: ReleaseLock | undefined;
+
+  report("clear_queued", {});
+  try {
+    // Serialize with queries and the listener so a close never lands in the
+    // middle of somebody else's prompt.
+    release = await copilotRequestMutex.acquire(options.signal);
+    report("clear_started", { queue_duration_ms: Date.now() - startedAt });
+
+    const result = await runner(buildCloseInvocation(requestId), options.signal);
+    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
+    report("clear_succeeded", { duration_ms: Date.now() - startedAt });
+    // Never surface mojibake: helper processes can emit console-codepage text
+    // that decodes to replacement characters, which is worse than no detail.
+    const usable = output.length > 0 && !output.includes("�");
+    return usable ? output : "Closed the managed Microsoft 365 Copilot Chrome instance.";
+  } catch (error) {
+    report(options.signal?.aborted ? "clear_canceled" : "clear_failed", {
+      duration_ms: Date.now() - startedAt,
+      error_name: error instanceof Error ? error.name : "UnknownError",
+    });
+    throw error;
+  } finally {
+    release?.();
+    report("clear_finished", {
+      duration_ms: Date.now() - startedAt,
+      lock_released: release !== undefined,
+    });
+  }
+}
+
+export function clearM365Copilot(options: ClearOptions = {}): Promise<string> {
+  return clearM365CopilotWithRunner(options, runAskBridge);
+}
+
 export function askM365Copilot(options: AskOptions): Promise<string> {
   return askM365CopilotWithRunner(options, runAskBridge);
 }

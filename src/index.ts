@@ -4,13 +4,14 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import {
   askM365Copilot,
+  clearM365Copilot,
   listenM365Copilot,
   resolveListenerTimeoutSeconds,
 } from "./ask-bridge.js";
 import { MAX_ATTACHMENTS, type InlineImageInput } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.25" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.26" });
 
 const inlineImageSchema = z.object({
   data: z
@@ -197,6 +198,43 @@ server.registerTool(
     inputSchema: { ...commonInputSchema, model: modelSchema },
   },
   async (args, { signal }) => executeAskTool({ ...args, newConversation: true }, signal),
+);
+
+server.registerTool(
+  "ask_m365_copilot_clear",
+  {
+    title: "Close the managed M365 Copilot browser",
+    description:
+      "Close the ask-bridge managed Chrome instance used for Microsoft 365 Copilot (equivalent to running `ask-bridge --provider copilot close`). Use this as a recovery step when M365 requests keep failing because the browser is stuck — for example a sign-in page that never completes, a dialog the automation cannot dismiss, or a window that was closed manually. The next ask_m365_copilot, ask_m365_copilot_new_conversion, or ask_m365_copilot_listener call starts a fresh browser automatically. The sign-in profile is kept, so the user does not have to sign in to Microsoft 365 again, but any open M365 conversation is left behind: the following request continues in whatever conversation M365 restores, so prefer ask_m365_copilot_new_conversion afterwards when a clean thread matters. Sends nothing to Microsoft 365 and returns no chat content.",
+    inputSchema: {},
+  },
+  async (_args, { signal }) => {
+    const requestId = createRequestId();
+    try {
+      const message = await clearM365Copilot({ requestId, signal });
+      emitDiagnostic(requestId, "tool_result_returned", {
+        is_error: false,
+        source: "m365_clear",
+      });
+      return { content: [{ type: "text" as const, text: message }] };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      emitDiagnostic(requestId, "tool_result_returned", {
+        is_error: true,
+        error_name: error instanceof Error ? error.name : "UnknownError",
+        source: "m365_clear",
+      });
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text" as const,
+            text: `Closing the Microsoft 365 Copilot browser failed: ${message}`,
+          },
+        ],
+      };
+    }
+  },
 );
 
 server.registerTool(

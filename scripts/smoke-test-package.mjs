@@ -58,7 +58,7 @@ assert.equal(
 
 const components = JSON.parse(await readFile(componentsManifest, "utf8"));
 const chromeDevtoolsPackage = JSON.parse(await readFile(chromeDevtoolsMcpPackage, "utf8"));
-assert.equal(components.askBridge.version, "0.3.23");
+assert.equal(components.askBridge.version, "0.3.24");
 assert.equal(components.chromeDevtoolsMcp.version, "1.5.0");
 assert.equal(chromeDevtoolsPackage.version, components.chromeDevtoolsMcp.version);
 const { stdout: askBridgeVersionOutput } = await execFileAsync(askBridgeExe, ["--version"], {
@@ -128,8 +128,8 @@ try {
   }
   assert.deepEqual(
     tools.map((candidate) => candidate.name).sort(),
-    ["ask_m365_copilot", "ask_m365_copilot_listener", "ask_m365_copilot_new_conversion"],
-    "Packaged MCP server must expose exactly the two ask tools plus the listener",
+    ["ask_m365_copilot", "ask_m365_copilot_clear", "ask_m365_copilot_listener", "ask_m365_copilot_new_conversion"],
+    "Packaged MCP server must expose exactly the two ask tools plus the listener and clear tools",
   );
   const listener = tools.find(
     (candidate) => candidate.name === "ask_m365_copilot_listener",

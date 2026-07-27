@@ -69,11 +69,11 @@ test("every query tool tells the host agent that an explicit #mention must be ca
   }
 });
 
-test("only the two ask tools plus the listener are exposed", async () => {
+test("only the two ask tools plus the listener and clear tools are exposed", async () => {
   const tools = await listTools();
   assert.deepEqual(
     tools.map((tool) => tool.name).sort(),
-    ["ask_m365_copilot", "ask_m365_copilot_listener", "ask_m365_copilot_new_conversion"],
+    ["ask_m365_copilot", "ask_m365_copilot_clear", "ask_m365_copilot_listener", "ask_m365_copilot_new_conversion"],
   );
 });
 
