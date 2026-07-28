@@ -52,6 +52,9 @@ release/
 .npm-cache/
 npm-debug.log*
 
+# Local MCP configuration varies by machine.
+.vscode/mcp.json
+
 # MSBuild Binary and Structured Log
 *.binlog
 
