@@ -120,6 +120,53 @@ test("listener holds the same Chrome lock until Return VS Code completes", async
   ]);
 });
 
+test("serializes a query, listener, and new-conversation query", async (t) => {
+  const listenerGate = deferred();
+  t.after(() => listenerGate.resolve());
+  const events = [];
+  const runner = async (invocation) => {
+    if (invocation.kind === "version") return supportedVersion();
+    events.push(`start:${invocation.kind}:${invocation.stdin}`);
+    if (invocation.kind === "listener") await listenerGate.promise;
+    events.push(`end:${invocation.kind}:${invocation.stdin}`);
+    return { stdout: `${invocation.kind} result\n`, stderr: "" };
+  };
+
+  assert.equal(await askM365CopilotWithRunner({ ...baseOptions, prompt: "current" }, runner), "query result");
+
+  const listener = listenM365CopilotWithRunner(
+    { timeoutSeconds: 1800, newConversation: false },
+    runner,
+  );
+  await waitFor(
+    () => events.includes("start:listener:"),
+    "listener did not acquire the Chrome lock",
+  );
+  const newConversationQuery = askM365CopilotWithRunner(
+    { ...baseOptions, prompt: "fresh", newConversation: true },
+    runner,
+  );
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(events, [
+    "start:query:current",
+    "end:query:current",
+    "start:listener:",
+  ]);
+
+  listenerGate.resolve();
+  assert.equal(await listener, "listener result");
+  assert.equal(await newConversationQuery, "query result");
+  assert.deepEqual(events, [
+    "start:query:current",
+    "end:query:current",
+    "start:listener:",
+    "end:listener:",
+    "start:query:fresh",
+    "end:query:fresh",
+  ]);
+});
+
 test("aborting a queued request rejects immediately and does not block later requests", async (t) => {
   const firstGate = deferred();
   t.after(() => firstGate.resolve());

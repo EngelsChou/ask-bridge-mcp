@@ -160,30 +160,19 @@ test("recognizes ask-bridge logged-out diagnostics", () => {
   assert.equal(requiresInteractiveLogin(new Error("Chrome failed to start")), false);
 });
 
-test("relaunches visible login and retries the original stdin prompt", async () => {
+test("leaves interactive login recovery to the ask-bridge query process", async () => {
   const invocations = [];
-  let queryCount = 0;
   const runner = withSupportedVersion(async (invocation) => {
     invocations.push(invocation);
-    if (invocation.kind === "query" && queryCount++ === 0) {
-      throw new Error(
-        "You are not logged in to Microsoft 365 Copilot. Run ask-bridge --provider copilot login.",
-      );
-    }
-    if (invocation.kind === "query") return { stdout: "Copilot answer\n", stderr: "" };
-    return { stdout: "ok\n", stderr: "" };
+    assert.equal(invocation.kind, "query");
+    return { stdout: "Copilot answer\n", stderr: "" };
   });
 
   const answer = await askM365CopilotWithRunner(options, runner);
 
   assert.equal(answer, "Copilot answer");
-  assert.deepEqual(
-    invocations.map(({ kind }) => kind),
-    ["query", "close", "login", "query"],
-  );
+  assert.deepEqual(invocations.map(({ kind }) => kind), ["query"]);
   assert.equal(invocations[0].stdin, options.prompt);
-  assert.equal(invocations[2].windowsHide, false);
-  assert.equal(invocations[3].stdin, options.prompt);
 });
 
 test("does not turn unrelated ask-bridge failures into a login flow", async () => {
@@ -446,9 +435,8 @@ test("cleans clipboard temporary files when capture fails", async () => {
   await assertPathMissing(path.dirname(outputPath));
 });
 
-test("keeps materialized attachments for login retry, then cleans them", async () => {
+test("keeps materialized attachments for the ask-bridge query, then cleans them", async () => {
   const queryPaths = [];
-  let queryCount = 0;
   const answer = await askM365CopilotWithRunner(
     {
       ...options,
@@ -457,24 +445,17 @@ test("keeps materialized attachments for login retry, then cleans them", async (
     },
     withSupportedVersion(async (invocation) => {
       if (invocation.kind === "query") {
-        queryCount += 1;
         const value = invocation.args[invocation.args.indexOf("--image") + 1];
         queryPaths.push(value);
         await access(value);
-        if (queryCount === 1) {
-          throw new Error(
-            "You are not logged in to Microsoft 365 Copilot. Run ask-bridge --provider copilot login.",
-          );
-        }
-        return { stdout: "retried with attachment\n", stderr: "" };
+        return { stdout: "query accepted attachment\n", stderr: "" };
       }
       return { stdout: "ok\n", stderr: "" };
     }),
   );
 
-  assert.equal(answer, "retried with attachment");
-  assert.equal(queryPaths.length, 2);
-  assert.equal(queryPaths[0], queryPaths[1]);
+  assert.equal(answer, "query accepted attachment");
+  assert.equal(queryPaths.length, 1);
   await assertPathMissing(path.dirname(queryPaths[0]));
 });
 

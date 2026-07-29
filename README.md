@@ -27,7 +27,7 @@ ask-bridge --provider copilot "請用繁體中文回答：MCP 與 Skill 有什�
 
 也可使用較短的等效指令 `ask`。這兩個命令只會啟動完整安裝包內固定版本的 `ask-bridge.exe`，不依賴電腦上另行安裝 Node.js、npm、npx 或其他 ask-bridge。
 
-第一次從 VS Code 呼叫 `ask_m365_copilot` 時，如果專用 Chrome profile 尚未登入，MCP Server 會自動關閉原本隱藏的背景 Chrome、開啟可見的登入視窗，並在登入完成後重送原問題。登入資料保存在 `%USERPROFILE%\.config\ask-bridge\chrome-profile`，升級或解除安裝程式不會刪除它。
+第一次從 VS Code 呼叫 `ask_m365_copilot` 時，如果專用 Chrome profile 尚未登入，`ask-bridge` query 會在同一個 Chrome 工作階段開啟可見登入視窗；登入完成後，該 query 會繼續送出原問題。MCP Server 不會另行關閉或重啟這個工作階段，因此不會遺失等待送出的 prompt。登入資料保存在 `%USERPROFILE%\.config\ask-bridge\chrome-profile`，升級或解除安裝程式不會刪除它。
 
 接著從 GitHub Releases 下載並執行 `install.exe`。安裝器會將程式安裝到：
 

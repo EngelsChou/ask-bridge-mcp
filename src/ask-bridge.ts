@@ -652,39 +652,15 @@ export async function askM365CopilotWithRunner(
         inlineImages: [],
         includeClipboardImage: false,
       };
-      const query = () =>
-        runner(buildCopilotQueryInvocation(preparedOptions), options.signal).then(answerFrom);
-
-      let answer: string;
+      // ask-bridge owns interactive sign-in for a query: it keeps the same
+      // process, Chrome session, and stdin prompt alive until login completes.
+      // Starting a second login command here closes that session and can discard
+      // the pending prompt before it is submitted.
       stage = "query";
-      try {
-        answer = await query();
-      } catch (error) {
-        if (!requiresInteractiveLogin(error)) throw error;
-        report("interactive_login_required", {});
-
-        // A normal query intentionally starts ask-bridge in background mode. If that
-        // fresh profile is logged out, stop only the managed instance and relaunch
-        // the dedicated login command so Chrome is visible to the user. Once login
-        // completes, retry the original prompt and attachments automatically.
-        stage = "interactive_login";
-        await runner(buildCloseInvocation(requestId), options.signal);
-        await runner(buildLoginInvocation(options.timeoutSeconds, requestId), options.signal);
-        report("interactive_login_completed", {});
-
-        stage = "query_retry";
-        try {
-          answer = await query();
-        } catch (retryError) {
-          if (requiresInteractiveLogin(retryError)) {
-            throw new Error(
-              "Microsoft 365 Copilot sign-in was not completed. Finish signing in in the ask-bridge Chrome window, then retry the tool call.",
-              { cause: retryError },
-            );
-          }
-          throw retryError;
-        }
-      }
+      const answer = await runner(
+        buildCopilotQueryInvocation(preparedOptions),
+        options.signal,
+      ).then(answerFrom);
 
       stage = "completed";
       report("request_succeeded", {

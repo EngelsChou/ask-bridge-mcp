@@ -11,7 +11,7 @@ import {
 import { MAX_ATTACHMENTS, type InlineImageInput } from "./attachments.js";
 import { createRequestId, emitDiagnostic } from "./diagnostics.js";
 
-const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.26" });
+const server = new McpServer({ name: "ask-bridge-m365-copilot", version: "0.2.27" });
 
 const inlineImageSchema = z.object({
   data: z
