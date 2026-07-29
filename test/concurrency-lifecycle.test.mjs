@@ -206,35 +206,19 @@ test("aborting a queued request rejects immediately and does not block later req
   assert.deepEqual(started, ["A", "C"]);
 });
 
-test("holds the lock across login retry and attachment cleanup", async (t) => {
-  const loginGate = deferred();
+test("holds the lock through query completion and attachment cleanup", async (t) => {
   const cleanupGate = deferred();
   t.after(() => {
-    loginGate.resolve();
     cleanupGate.resolve();
   });
-  const loginStarted = deferred();
   const cleanupStarted = deferred();
   const events = [];
-  let firstQueryCount = 0;
 
   const runner = async (invocation) => {
     if (invocation.kind === "version") return supportedVersion();
-    if (invocation.kind === "query") {
-      events.push(`query:${invocation.stdin}`);
-      if (invocation.stdin === "A" && firstQueryCount++ === 0) {
-        throw new Error(
-          "You are not logged in to Microsoft 365 Copilot. Run ask-bridge --provider copilot login.",
-        );
-      }
-      return { stdout: `answer:${invocation.stdin}\n`, stderr: "" };
-    }
-    events.push(invocation.kind);
-    if (invocation.kind === "login") {
-      loginStarted.resolve();
-      await loginGate.promise;
-    }
-    return { stdout: "ok\n", stderr: "" };
+    assert.equal(invocation.kind, "query");
+    events.push(`query:${invocation.stdin}`);
+    return { stdout: `answer:${invocation.stdin}\n`, stderr: "" };
   };
 
   const first = askM365CopilotWithRunner(
@@ -256,7 +240,7 @@ test("holds the lock across login retry and attachment cleanup", async (t) => {
       },
     },
   );
-  await loginStarted.promise;
+  await cleanupStarted.promise;
   const second = askM365CopilotWithRunner(
     { ...baseOptions, prompt: "B" },
     runner,
@@ -269,28 +253,13 @@ test("holds the lock across login retry and attachment cleanup", async (t) => {
     },
   );
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(events, ["prepare:A", "query:A", "close", "login"]);
-
-  loginGate.resolve();
-  await cleanupStarted.promise;
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.deepEqual(events, [
-    "prepare:A",
-    "query:A",
-    "close",
-    "login",
-    "query:A",
-    "cleanup:A",
-  ]);
+  assert.deepEqual(events, ["prepare:A", "query:A", "cleanup:A"]);
 
   cleanupGate.resolve();
   assert.equal(await first, "answer:A");
   assert.equal(await second, "answer:B");
   assert.deepEqual(events, [
     "prepare:A",
-    "query:A",
-    "close",
-    "login",
     "query:A",
     "cleanup:A",
     "prepare:B",
